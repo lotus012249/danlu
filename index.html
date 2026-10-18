@@ -190,6 +190,7 @@ nav.tabs button[aria-current="page"]::before{content:"";position:absolute;top:0;
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 
 /* 圖片辨識 */
+.switch .lbl{display:flex;flex-direction:column;gap:2px;min-width:0}
 label.btn{display:inline-flex;align-items:center;justify-content:center;text-align:center;cursor:pointer}
 .filein{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
 .tag.new{background:var(--blue-soft);color:var(--blue)}
@@ -619,6 +620,41 @@ function classifyTrial({ result, pill, items }, recipes, rules) {
   return { kind: 'new', codes: [], note: n ? `新的配方（「${pill}」已有 ${n} 種配方）` : `新的配方（資料庫還沒有「${pill}」）` };
 }
 
+// ================= 批量煉藥規劃 =================
+// 依清單順序逐種丹藥挑「另付碎銀最低」的配方（已驗證優先於待驗證，已確認炸爐的配方排除），
+// 前面的丹藥用掉的庫存，後面的丹藥看不到。這是逐步挑最便宜，不保證整批全域最省。
+// 缺官方價格的配方不會被挑（不當成免費）。
+function planBatch(opts) {
+  const { targets = [], recipes, prices, stock = {}, useStock = true, allowUnverified = false, failureRules = [] } = opts;
+  const left = { ...stock };
+  const picks = [];
+  const unavailable = [];
+  const buy = new Map();
+  const used = new Map();
+  let theoryCost = 0;
+  let purchaseCost = 0;
+  for (const t of targets) {
+    const res = planPill({ pill: t.pill, count: t.count, recipes, prices, stock: left, useStock, allowUnverified, failureRules });
+    const pool = [...res.verified, ...res.unverified];
+    const best = pool.find((r) => r.purchaseCost !== null);
+    if (!best) {
+      let reason = '沒有可用的配方';
+      if (res.excluded.length && !pool.length) reason = '所有配方都和已確認炸爐的組合完全相同，已排除';
+      else if (pool.length) reason = '配方裡有藥材沒有官方價格，無法計算';
+      else if (!allowUnverified && recipes.some((r) => canonicalPill(r.pill) === canonicalPill(t.pill))) reason = '沒有已驗證的配方（可打開「含待驗證配方」）';
+      unavailable.push({ pill: t.pill, count: t.count, reason });
+      continue;
+    }
+    picks.push({ pill: canonicalPill(t.pill), count: t.count, code: best.code, status: best.status, need: best.need, deducted: best.deducted, toBuy: best.toBuy, theoryCost: best.theoryCost, purchaseCost: best.purchaseCost, blast: best.blast });
+    for (const [n, d] of Object.entries(best.deducted)) { left[n] = (left[n] ?? 0) - d; used.set(n, (used.get(n) ?? 0) + d); }
+    for (const [n, q] of Object.entries(best.toBuy)) buy.set(n, (buy.get(n) ?? 0) + q);
+    theoryCost += best.theoryCost;
+    purchaseCost += best.purchaseCost;
+  }
+  const buyList = [...buy].map(([name, qty]) => ({ name, qty, cost: (prices[name] ?? 0) * qty }));
+  return { picks, unavailable, buy: Object.fromEntries(buy), buyList, used: Object.fromEntries(used), theoryCost, purchaseCost };
+}
+
 const DATA = {"ingredients":[{"name":"青露草","tier":"平凡","price":12},{"name":"甘草","tier":"平凡","price":12},{"name":"赤根草","tier":"平凡","price":15},{"name":"白芷","tier":"平凡","price":18},{"name":"黃精","tier":"良品","price":28},{"name":"寒心草","tier":"良品","price":30},{"name":"火棗","tier":"良品","price":35},{"name":"月華草","tier":"良品","price":38},{"name":"人參","tier":"珍稀","price":55},{"name":"寒露花","tier":"珍稀","price":60},{"name":"丹陽花","tier":"珍稀","price":70},{"name":"雪蓮","tier":"珍稀","price":75},{"name":"朱果","tier":"罕見","price":110},{"name":"冰心蘭","tier":"罕見","price":120},{"name":"烈火芝","tier":"罕見","price":140},{"name":"玄霜芝","tier":"罕見","price":150},{"name":"九陽參","tier":"絕世","price":220},{"name":"太陰蓮","tier":"絕世","price":240},{"name":"九幽玄參","tier":"絕世","price":290},{"name":"赤龍果","tier":"絕世","price":300}],"recipes":[{"code":"R01","pill":"築基丹","status":"待驗證","items":[{"name":"白芷","qty":1},{"name":"黃精","qty":1},{"name":"甘草","qty":1}]},{"code":"R02","pill":"築基丹","status":"待驗證","items":[{"name":"人參","qty":1},{"name":"甘草","qty":1}]},{"code":"R03","pill":"築基丹","status":"待驗證","items":[{"name":"甘草","qty":1},{"name":"青露草","qty":1},{"name":"火棗","qty":1}]},{"code":"R04","pill":"小還丹","status":"待驗證","items":[{"name":"赤根草","qty":1},{"name":"寒心草","qty":1},{"name":"白芷","qty":1}]},{"code":"R05","pill":"大還丹","status":"待驗證","items":[{"name":"白芷","qty":1},{"name":"寒心草","qty":1},{"name":"雪蓮","qty":1}]},{"code":"R06","pill":"大還丹","status":"待驗證","items":[{"name":"甘草","qty":1},{"name":"白芷","qty":1},{"name":"寒露花","qty":1}]},{"code":"R07","pill":"大還丹","status":"待驗證","items":[{"name":"白芷","qty":1},{"name":"寒心草","qty":1},{"name":"人參","qty":1}]},{"code":"R08","pill":"虎力丹","status":"待驗證","items":[{"name":"甘草","qty":2},{"name":"人參","qty":2},{"name":"月華草","qty":1}]},{"code":"R09","pill":"行功丹","status":"待驗證","items":[{"name":"寒心草","qty":1},{"name":"雪蓮","qty":1},{"name":"玄霜芝","qty":1}]},{"code":"R10","pill":"練氣丹","status":"待驗證","items":[{"name":"甘草","qty":2},{"name":"朱果","qty":1},{"name":"烈火芝","qty":1}]},{"code":"R11","pill":"練氣丹","status":"待驗證","items":[{"name":"白芷","qty":3},{"name":"黃精","qty":3},{"name":"丹陽花","qty":1}]},{"code":"R12","pill":"練氣丹","status":"待驗證","items":[{"name":"赤根草","qty":2},{"name":"火棗","qty":1},{"name":"九陽參","qty":1}]},{"code":"R13","pill":"練氣丹","status":"待驗證","items":[{"name":"火棗","qty":1},{"name":"人參","qty":1},{"name":"烈火芝","qty":1}]},{"code":"R14","pill":"練氣丹","status":"待驗證","items":[{"name":"火棗","qty":1},{"name":"丹陽花","qty":1},{"name":"烈火芝","qty":1}]},{"code":"R15","pill":"通脈丹","status":"待驗證","items":[{"name":"太陰蓮","qty":1},{"name":"人參","qty":2},{"name":"月華草","qty":2}]},{"code":"R16","pill":"通脈丹","status":"待驗證","items":[{"name":"九幽玄參","qty":1},{"name":"雪蓮","qty":1},{"name":"冰心蘭","qty":1}]},{"code":"R17","pill":"通脈丹","status":"待驗證","items":[{"name":"白芷","qty":3},{"name":"雪蓮","qty":3},{"name":"冰心蘭","qty":1}]},{"code":"R18","pill":"通脈丹","status":"待驗證","items":[{"name":"寒心草","qty":1},{"name":"赤龍果","qty":1},{"name":"玄霜芝","qty":1}]},{"code":"R19","pill":"培元丹","status":"待驗證","items":[{"name":"赤龍果","qty":1},{"name":"烈火芝","qty":1},{"name":"朱果","qty":1}]},{"code":"R20","pill":"金創藥","status":"待驗證","items":[{"name":"青露草","qty":3},{"name":"寒露花","qty":3},{"name":"冰心蘭","qty":1}]},{"code":"R21","pill":"金創藥","status":"待驗證","items":[{"name":"雪蓮","qty":1},{"name":"冰心蘭","qty":1},{"name":"玄霜芝","qty":1}]},{"code":"R22","pill":"黑玉斷續膏","status":"待驗證","items":[{"name":"白芷","qty":3},{"name":"月華草","qty":3},{"name":"寒露花","qty":2},{"name":"九幽玄參","qty":1}]},{"code":"R23","pill":"黑玉斷續膏","status":"待驗證","items":[{"name":"青露草","qty":3},{"name":"月華草","qty":3},{"name":"雪蓮","qty":2},{"name":"九幽玄參","qty":1}]},{"code":"R24","pill":"黑玉斷續膏","status":"待驗證","items":[{"name":"寒心草","qty":3},{"name":"寒露花","qty":3},{"name":"冰心蘭","qty":2},{"name":"太陰蓮","qty":1}]},{"code":"R25","pill":"天罡丹","status":"待驗證","items":[{"name":"赤根草","qty":3},{"name":"火棗","qty":3},{"name":"丹陽花","qty":2},{"name":"赤龍果","qty":1}]},{"code":"R26","pill":"洗髓丹","status":"待驗證","items":[{"name":"黃精","qty":3},{"name":"人參","qty":3},{"name":"烈火芝","qty":2},{"name":"九陽參","qty":1}]}],"failureRules":[{"code":"A1","status":"已確認","items":[{"name":"青露草","qty":1},{"name":"黃精","qty":1},{"name":"丹陽花","qty":1}]},{"code":"A2","status":"已確認","items":[{"name":"白芷","qty":2},{"name":"朱果","qty":1},{"name":"赤龍果","qty":1}]},{"code":"A3","status":"已確認","items":[{"name":"烈火芝","qty":1},{"name":"火棗","qty":1},{"name":"朱果","qty":1}]},{"code":"A4","status":"已確認","items":[{"name":"九幽玄參","qty":1},{"name":"太陰蓮","qty":1},{"name":"月華草","qty":1}]},{"code":"A5","status":"已確認","items":[{"name":"九幽玄參","qty":1},{"name":"甘草","qty":1},{"name":"黃精","qty":1}]},{"code":"A6","status":"已確認","items":[{"name":"白芷","qty":1},{"name":"人參","qty":1},{"name":"冰心蘭","qty":1}]},{"code":"A7","status":"已確認","items":[{"name":"九陽參","qty":1},{"name":"烈火芝","qty":1},{"name":"丹陽花","qty":1}]},{"code":"A8","status":"已確認","items":[{"name":"太陰蓮","qty":1},{"name":"烈火芝","qty":1},{"name":"丹陽花","qty":1}]},{"code":"B1","status":"已確認","items":[{"name":"甘草","qty":3},{"name":"人參","qty":3},{"name":"朱果","qty":2},{"name":"九幽玄參","qty":1}]},{"code":"B2","status":"已確認","items":[{"name":"甘草","qty":4},{"name":"黃精","qty":2},{"name":"丹陽花","qty":1},{"name":"九陽參","qty":1}]},{"code":"B3","status":"已確認","items":[{"name":"甘草","qty":2},{"name":"太陰蓮","qty":1},{"name":"月華草","qty":1}]},{"code":"B4","status":"已確認","items":[{"name":"赤根草","qty":3},{"name":"火棗","qty":2},{"name":"黃精","qty":3},{"name":"九陽參","qty":1}]},{"code":"B5","status":"已確認","items":[{"name":"黃精","qty":3},{"name":"雪蓮","qty":2},{"name":"玄霜芝","qty":1}]},{"code":"B6","status":"已確認","items":[{"name":"月華草","qty":3},{"name":"雪蓮","qty":3},{"name":"冰心蘭","qty":1}]},{"code":"B7","status":"已確認","items":[{"name":"青露草","qty":5},{"name":"寒心草","qty":4},{"name":"寒露花","qty":3},{"name":"冰心蘭","qty":2},{"name":"太陰蓮","qty":1}]},{"code":"B8","status":"已確認","items":[{"name":"黃精","qty":3},{"name":"九陽參","qty":1},{"name":"丹陽花","qty":3}]},{"code":"B9","status":"已確認","items":[{"name":"九陽參","qty":1},{"name":"丹陽花","qty":3},{"name":"烈火芝","qty":3},{"name":"火棗","qty":3},{"name":"朱果","qty":3}]},{"code":"B10","status":"已確認","items":[{"name":"丹陽花","qty":2},{"name":"丹陽花","qty":2},{"name":"九陽參","qty":1},{"name":"朱果","qty":2}]},{"code":"B11","status":"已確認","items":[{"name":"赤根草","qty":4},{"name":"火棗","qty":4},{"name":"丹陽花","qty":3},{"name":"朱果","qty":2},{"name":"赤龍果","qty":1}]},{"code":"B12","status":"已確認","items":[{"name":"人參","qty":3},{"name":"丹陽花","qty":3},{"name":"赤龍果","qty":1}]},{"code":"B13","status":"已確認","items":[{"name":"朱果","qty":1},{"name":"赤根草","qty":2},{"name":"丹陽花","qty":2}]},{"code":"B14","status":"已確認","items":[{"name":"九陽參","qty":1},{"name":"青露草","qty":4},{"name":"月華草","qty":3},{"name":"烈火芝","qty":2}]},{"code":"B15","status":"已確認","items":[{"name":"九陽參","qty":1},{"name":"朱果","qty":2},{"name":"火棗","qty":2}]},{"code":"B16","status":"已確認","items":[{"name":"九陽參","qty":1},{"name":"白芷","qty":2},{"name":"丹陽花","qty":2}]},{"code":"B17","status":"已確認","items":[{"name":"白芷","qty":3},{"name":"黃精","qty":3},{"name":"雪蓮","qty":1}]},{"code":"B18","status":"已確認","items":[{"name":"朱果","qty":1},{"name":"烈火芝","qty":1},{"name":"赤龍果","qty":1},{"name":"九陽參","qty":1}]},{"code":"B19","status":"已確認","items":[{"name":"甘草","qty":1},{"name":"丹陽花","qty":1},{"name":"赤根草","qty":1}]},{"code":"B20","status":"已確認","items":[{"name":"月華草","qty":3},{"name":"雪蓮","qty":3},{"name":"冰心蘭","qty":2},{"name":"太陰蓮","qty":1}]},{"code":"C1","status":"已確認","items":[{"name":"甘草","qty":2},{"name":"朱果","qty":2},{"name":"冰心蘭","qty":1}]},{"code":"C2","status":"已確認","items":[{"name":"甘草","qty":2},{"name":"朱果","qty":1},{"name":"冰心蘭","qty":1}]},{"code":"C3","status":"已確認","items":[{"name":"甘草","qty":2},{"name":"人參","qty":2},{"name":"寒露花","qty":1}]},{"code":"C4","status":"已確認","items":[{"name":"青露草","qty":2},{"name":"白芷","qty":1},{"name":"玄霜芝","qty":1}]},{"code":"C5","status":"已確認","items":[{"name":"赤根草","qty":3},{"name":"丹陽花","qty":3},{"name":"赤龍果","qty":1}]},{"code":"C6","status":"已確認","items":[{"name":"赤根草","qty":3},{"name":"丹陽花","qty":3},{"name":"烈火芝","qty":1}]},{"code":"C7","status":"已確認","items":[{"name":"白芷","qty":3},{"name":"寒心草","qty":3},{"name":"冰心蘭","qty":2},{"name":"太陰蓮","qty":1}]},{"code":"C8","status":"已確認","items":[{"name":"青露草","qty":3},{"name":"寒心草","qty":3},{"name":"冰心蘭","qty":2},{"name":"太陰蓮","qty":1}]},{"code":"C9","status":"已確認","items":[{"name":"甘草","qty":3},{"name":"白芷","qty":2},{"name":"月華草","qty":2},{"name":"人參","qty":1}]},{"code":"C10","status":"已確認","items":[{"name":"寒心草","qty":1},{"name":"雪蓮","qty":1},{"name":"冰心蘭","qty":1}]},{"code":"C11","status":"已確認","items":[{"name":"白芷","qty":1},{"name":"寒心草","qty":1},{"name":"朱果","qty":1}]},{"code":"C12","status":"已確認","items":[{"name":"白芷","qty":1},{"name":"寒心草","qty":1},{"name":"寒露花","qty":1}]},{"code":"C13","status":"已確認","items":[{"name":"雪蓮","qty":1},{"name":"冰心蘭","qty":1},{"name":"九陽參","qty":1}]},{"code":"C14","status":"已確認","items":[{"name":"雪蓮","qty":2},{"name":"冰心蘭","qty":2},{"name":"九陽參","qty":1}]},{"code":"C15","status":"已確認","items":[{"name":"太陰蓮","qty":1},{"name":"冰心蘭","qty":1},{"name":"玄霜芝","qty":1}]},{"code":"D1","status":"已確認","items":[{"name":"火棗","qty":1},{"name":"九陽參","qty":1},{"name":"赤龍果","qty":1}]},{"code":"D2","status":"已確認","items":[{"name":"甘草","qty":2},{"name":"赤根草","qty":1}]},{"code":"D3","status":"已確認","items":[{"name":"丹陽花","qty":1},{"name":"寒心草","qty":1},{"name":"黃精","qty":1}]},{"code":"D4","status":"已確認","items":[{"name":"黃精","qty":1},{"name":"寒心草","qty":1}]},{"code":"D5","status":"已確認","items":[{"name":"赤龍果","qty":1},{"name":"人參","qty":1}]},{"code":"D6","status":"已確認","items":[{"name":"丹陽花","qty":2},{"name":"寒露花","qty":2},{"name":"白芷","qty":3}]},{"code":"D7","status":"已確認","items":[{"name":"丹陽花","qty":1},{"name":"人參","qty":1},{"name":"雪蓮","qty":1}]},{"code":"D8","status":"已確認","items":[{"name":"人參","qty":1},{"name":"白芷","qty":1}]},{"code":"D9","status":"已確認","items":[{"name":"赤根草","qty":3},{"name":"火棗","qty":3},{"name":"人參","qty":2},{"name":"赤龍果","qty":1}]},{"code":"D10","status":"已確認","items":[{"name":"甘草","qty":1},{"name":"白芷","qty":1},{"name":"人參","qty":1}]},{"code":"D11","status":"已確認","items":[{"name":"人參","qty":1},{"name":"甘草","qty":1},{"name":"火棗","qty":1}]}]};
 (function(){
 const TIER_VAR={平凡:'--t1',良品:'--t2',珍稀:'--t3',罕見:'--t4',絕世:'--t5'};
@@ -638,6 +674,7 @@ const SB={client:null,user:null,role:'member',state:SUPABASE.url&&SUPABASE.anonK
 
 const S={tab:'calc',pill:'大還丹',count:1,useStock:true,allowUnverified:true,stock:{...EXAMPLE_STOCK},exampleStock:true,
   mix:{白芷:1,寒心草:1},mixExample:true,log:[],nextId:1,q:'',armed:null,haulText:'',haulNote:'',newPill:'',logPill:'',importText:'',fallback:''};
+S.batch=[];S.calcMode='single';
 const SCAN={busy:false,prog:'',err:'',text:'',files:0,trials:null,haul:null,nextT:1,added:{}};
 
 function normalizeEntry(e){
@@ -663,6 +700,8 @@ try{
     if(typeof s.pill==='string')S.pill=s.pill;
     if(typeof s.useStock==='boolean')S.useStock=s.useStock;
     if(typeof s.allowUnverified==='boolean')S.allowUnverified=s.allowUnverified;
+    if(s.calcMode==='batch')S.calcMode='batch';
+    if(Array.isArray(s.batch)){const seen=new Set();for(const t of s.batch){if(t&&typeof t.pill==='string'&&Number.isInteger(t.count)&&t.count>=1&&t.count<=99&&!seen.has(t.pill)&&S.batch.length<20){seen.add(t.pill);S.batch.push({pill:t.pill,count:t.count})}}}
     if(s.stock&&typeof s.stock==='object'){
       const st={};for(const [n,v] of Object.entries(s.stock)){if(n in PRICES&&Number.isInteger(v)&&v>0)st[n]=v}
       S.stock=st;S.exampleStock=s.exampleStock===true;
@@ -689,7 +728,7 @@ function refreshWorld(){
   if(!PILLS.includes(S.pill))S.pill=PILLS[0];
 }
 refreshWorld();
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify({tab:S.tab,pill:S.pill,count:S.count,useStock:S.useStock,allowUnverified:S.allowUnverified,stock:S.stock,exampleStock:S.exampleStock,log:S.log,nextId:S.nextId}))}catch(e){}scheduleStockSync()};
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify({tab:S.tab,pill:S.pill,count:S.count,useStock:S.useStock,allowUnverified:S.allowUnverified,calcMode:S.calcMode,batch:S.batch,stock:S.stock,exampleStock:S.exampleStock,log:S.log,nextId:S.nextId}))}catch(e){}scheduleStockSync()};
 
 /* ---------- Supabase 同步（只在設定好且已登入時動作） ---------- */
 const signedIn=()=>SB.state==='in'&&SB.client&&SB.user;
@@ -824,7 +863,51 @@ function recipeCard(r,best){
     <div class="actions">${S.useStock&&dedCount?`<button type="button" class="btn ${armed?'armed':''}" data-act="brew" data-code="${r.code}">${armed?'再按一次，確認扣除庫存':'煉了這個，扣除庫存'}</button>`:''}${needBuy?`<button type="button" class="btn quiet" data-act="copy-list" data-code="${r.code}">複製採購清單</button>`:''}</div>
   </article>`;
 }
+const modeSeg=()=>`<div class="seg" role="group" aria-label="計算方式"><button type="button" aria-pressed="${S.calcMode==='single'}" data-act="calc-mode" data-m="single">單一丹藥</button><button type="button" aria-pressed="${S.calcMode==='batch'}" data-act="calc-mode" data-m="batch">批量規劃${S.batch.length?`（${S.batch.length}）`:''}</button></div>`;
+const bplan=()=>planBatch({targets:S.batch.filter(t=>PILLS.includes(t.pill)),recipes:RECIPES,prices:PRICES,stock:S.stock,useStock:S.useStock,allowUnverified:S.allowUnverified,failureRules:RULE_LIST});
+function batchText(r){
+  const lines=r.picks.map(k=>`${k.pill} × ${k.count}（配方 ${k.code}）`);
+  const buy=r.buyList.map(b=>`${b.name}×${b.qty}`).join('、');
+  return `批量煉藥\n${lines.join('\n')}\n要買：${buy||'不用買'}\n需另付 ${r.purchaseCost} 碎銀`;
+}
+function batchView(){
+  const r=bplan();
+  const targets=S.batch.filter(t=>PILLS.includes(t.pill));
+  const have=new Set(targets.map(t=>t.pill));
+  const rows=targets.map(t=>`<div class="srow2"><span class="nm"><span>${esc(t.pill)}</span></span><div class="stepper"><button type="button" data-act="b-cnt" data-p="${esc(t.pill)}" data-d="-1" aria-label="減少${esc(t.pill)}份數">−</button><input type="number" inputmode="numeric" min="1" max="99" value="${t.count}" data-k="b-count" data-p="${esc(t.pill)}" aria-label="${esc(t.pill)}份數"><button type="button" data-act="b-cnt" data-p="${esc(t.pill)}" data-d="1" aria-label="增加${esc(t.pill)}份數">+</button></div><button type="button" class="x" data-act="b-del" data-p="${esc(t.pill)}" aria-label="移除${esc(t.pill)}">×</button></div>`).join('');
+  const setup=`${S.exampleStock?`<div class="banner"><b>目前用的是範例庫存</b>（白芷 2、寒心草 1、人參 1）。到「庫存」改成你自己的數量。</div>`:''}
+  ${modeSeg()}
+  <section class="panel"><h2>這批要煉什麼</h2>
+    ${rows?`<div class="rows" style="border:1px solid var(--line);border-radius:8px;padding:0 10px">${rows}</div>`:'<p class="hint">還沒有選丹藥。從下面選，每種可以設份數。</p>'}
+    <select class="in-text" data-k="b-add" aria-label="加入丹藥"><option value="">＋ 加入丹藥</option>${PILLS.filter(x=>!have.has(x)).map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('')}</select>
+    ${sw('toggle-stock',S.useStock,'扣抵我的庫存','依清單順序逐種扣，前面用掉的後面就沒有')}
+    ${sw('toggle-unv',S.allowUnverified,'含待驗證配方','來源提供的配方都是待驗證')}
+    ${targets.length>1?`<p class="hint">每種丹藥挑「另付最低」的配方，已驗證優先。庫存是照上面的順序分配，不保證整批全域最省。</p>`:''}
+  </section>`;
+  if(!targets.length)return setup;
+  let out=`<div class="summary"><strong class="num">另付 ${fmt(r.purchaseCost)} 碎銀</strong><span class="hint num">理論 ${fmt(r.theoryCost)}${S.useStock?` · 庫存抵 ${fmt(r.theoryCost-r.purchaseCost)}`:''}</span></div>`;
+  if(r.unavailable.length)out+=`<div class="alert critical"><b>這些算不出來</b>${r.unavailable.map(u=>`<span>${esc(u.pill)} × ${u.count}：${esc(u.reason)}</span>`).join('')}</div>`;
+  // 庫存不足提醒
+  if(r.picks.length){
+    if(r.buyList.length){
+      out+=`<div class="alert pending"><b>庫存不足，要補這些</b><div class="chips">${r.buyList.map(b=>`<span class="chip">${dot(b.name)}${esc(b.name)}<b>×${b.qty} · ${fmt(b.cost)}</b></span>`).join('')}</div></div>`;
+    }else out+=`<div class="alert safe"><b>庫存夠，這批不用再買</b></div>`;
+  }
+  out+=r.picks.map(k=>{
+    const blastWarn=k.blast.filter(b=>b.level!=='info');
+    const buyTxt=Object.entries(k.toBuy).map(([n,q])=>`${n}×${q}`).join('、');
+    return `<article class="card"><div class="head"><div class="who"><div class="tags"><span class="tag">${esc(k.status)}</span><span class="tag mine">${esc(k.pill)} × ${k.count}</span></div><span class="code">配方 ${k.code}</span></div><div class="price"><b>${fmt(k.purchaseCost)}</b><span>${S.useStock?'需另付碎銀':'碎銀'}</span></div></div>
+    <div class="chips">${Object.entries(k.need).map(([n,q])=>chip(n,q)).join('')}</div>
+    <p class="hint">${buyTxt?`要買：${esc(buyTxt)}`:'全部用庫存'}${Object.keys(k.deducted).length?`　庫存用掉：${esc(Object.entries(k.deducted).map(([n,q])=>`${n}×${q}`).join('、'))}`:''}</p>
+    ${blastWarn.length?`<div class="alert pending"><b>注意</b><span>${blastWarn.map(b=>esc(LABEL[b.level]+'：'+b.code)).join('、')}（只是警告，不排除）</span></div>`:''}</article>`}).join('');
+  if(r.picks.length){
+    const usedAny=S.useStock&&Object.keys(r.used).length;
+    out+=`<div class="actions"><button type="button" class="btn" data-act="b-copy">複製整批採購清單</button>${usedAny?`<button type="button" class="btn ${S.armed==='batch'?'armed':''}" data-act="b-brew">${S.armed==='batch'?'再按一次，確認扣除庫存':'煉完這批，扣除庫存'}</button>`:''}</div>`;
+  }
+  return setup+out;
+}
 function calcView(){
+  if(S.calcMode==='batch')return batchView();
   const res=plan();
   const all=[...res.verified,...res.unverified];
   const total=RECIPES.filter(r=>r.pill===S.pill).length;
@@ -838,6 +921,7 @@ function calcView(){
   if(res.excluded.length)body+=`<details class="panel"><summary>已排除 ${res.excluded.length} 個配方（與確定炸爐的組合完全相同）</summary>${res.excluded.map(r=>ruleRow(r.code,r.blast.filter(b=>b.level==='critical').map(b=>b.code).join('、'))).join('')}</details>`;
   const best=all[0];
   return `${S.exampleStock?`<div class="banner"><b>目前用的是範例庫存</b>（白芷 2、寒心草 1、人參 1）。到「庫存」改成你自己的數量。</div>`:''}
+  ${modeSeg()}
   <section class="panel"><h2>想煉什麼</h2>
     <div class="pills">${PILLS.map(p=>`<button type="button" class="pk" aria-pressed="${p===S.pill}" data-act="pill" data-pill="${esc(p)}">${esc(p)}<small>${RECIPES.filter(r=>r.pill===p).length} 種配方</small></button>`).join('')}</div>
     <div class="line"><span class="lbl"><span>煉製份數</span></span><div class="stepper"><button type="button" data-act="cnt-" aria-label="減少份數">−</button><input id="count" type="number" inputmode="numeric" min="1" max="99" value="${S.count}" data-k="count" aria-label="份數"><button type="button" data-act="cnt+" aria-label="增加份數">+</button></div></div>
@@ -999,10 +1083,12 @@ function herbsView(){
 
 /* ---------- 庫存 ---------- */
 function stockView(){
+  let remind='';
+  if(S.batch.length){const r=bplan();if(r.picks.length)remind=r.buyList.length?`<div class="alert pending"><b>批量規劃還缺 ${r.buyList.length} 種藥材</b><div class="chips">${r.buyList.map(b=>`<span class="chip">${dot(b.name)}${esc(b.name)}<b>×${b.qty}</b></span>`).join('')}</div><button type="button" class="btn quiet" data-act="b-open">去看批量規劃</button></div>`:`<div class="alert safe"><b>批量規劃的藥材庫存都夠</b></div>`}
   const value=ING.reduce((a,i)=>a+(S.stock[i.name]||0)*i.price,0);
   const kinds=Object.keys(S.stock).filter(n=>S.stock[n]>0).length;
   let idx=0;
-  return `${S.exampleStock?`<div class="banner"><b>這是範例庫存。</b>改任何數量後就會變成你自己的，資料只存在這台裝置的瀏覽器。</div>`:''}
+  return `${remind}${S.exampleStock?`<div class="banner"><b>這是範例庫存。</b>改任何數量後就會變成你自己的，資料只存在這台裝置的瀏覽器。</div>`:''}
   <section class="panel"><h2>貼上抓藥結果</h2><p class="hint">把 /抓藥 的訊息整段貼上，每一行算一份，會加進庫存。價格只拿來核對，不會改官方價格。</p>
   <textarea id="haul-text" class="ta" placeholder="・甘草〔平凡〕－ 12 碎銀&#10;・朱果〔罕見〕－ 110 碎銀" aria-label="抓藥訊息">${esc(S.haulText)}</textarea>
   <button type="button" class="btn solid" data-act="haul-add">加入庫存</button>${S.haulNote?`<div class="banner">${esc(S.haulNote)}</div>`:''}</section>
@@ -1197,7 +1283,7 @@ function doImport(){
 document.addEventListener('click',e=>{
   const b=e.target.closest('[data-act]');if(!b)return;
   const a=b.dataset.act;
-  if(a!=='brew'&&a!=='stock-clear'&&a!=='log-del')S.armed=null;
+  if(a!=='brew'&&a!=='stock-clear'&&a!=='log-del'&&a!=='b-brew')S.armed=null;
   switch(a){
     case 'tab':S.tab=b.dataset.tab;save();render();window.scrollTo(0,0);return;
     case 'pill':S.pill=b.dataset.pill;save();break;
@@ -1238,6 +1324,15 @@ document.addEventListener('click',e=>{
       return}
     case 'sign-out':SB.client.auth.signOut().then(()=>{SB.state='out';SB.user=null;SB.role='member';SB.others=[];SB.lastStock=null;SB.msg='';refreshWorld();render()});return;
     case 'sync-now':SB.msg='';SB.lastStock=null;pushStock().then(loadRemote);toast('同步中');return;
+    case 'calc-mode':S.calcMode=b.dataset.m==='batch'?'batch':'single';save();break;
+    case 'b-open':S.tab='calc';S.calcMode='batch';save();render();window.scrollTo(0,0);return;
+    case 'b-cnt':{const t=S.batch.find(x=>x.pill===b.dataset.p);if(t){t.count=clamp(t.count+Number(b.dataset.d),1,99);save()}break}
+    case 'b-del':S.batch=S.batch.filter(x=>x.pill!==b.dataset.p);save();break;
+    case 'b-copy':copyText(batchText(bplan()),'已複製整批採購清單');return;
+    case 'b-brew':
+      if(S.armed!=='batch')S.armed='batch';
+      else{const r=bplan();for(const [n,d] of Object.entries(r.used))setQty('stock',n,(S.stock[n]||0)-d);S.armed=null;toast('已扣除庫存')}
+      break;
     case 'scan-reparse':scanParse();SCAN.added={};SCAN.prog='';SCAN.err='';break;
     case 'scan-clear':SCAN.text='';SCAN.trials=null;SCAN.haul=null;SCAN.prog='';SCAN.err='';SCAN.added={};SCAN.files=0;break;
     case 'scan-res':{const t=scanTrial(b.dataset.t);if(t){t.result=b.dataset.r;t.flags=t.flags.filter(f=>!f.includes('開爐結果'))}break}
@@ -1263,6 +1358,10 @@ document.addEventListener('click',e=>{
 document.addEventListener('change',e=>{
   const t=e.target;
   if(t instanceof HTMLSelectElement&&t.id==='log-pill'){S.logPill=t.value;return}
+  if(t instanceof HTMLSelectElement&&t.dataset.k==='b-add'){
+    if(t.value&&!S.batch.some(x=>x.pill===t.value)&&S.batch.length<20){S.batch.push({pill:t.value,count:1});save()}
+    render();return;
+  }
   if(t instanceof HTMLSelectElement&&t.dataset.k==='scan-add'){
     const tr=scanTrial(t.dataset.t);
     if(tr&&t.value&&!tr.items.some(i=>i.name===t.value)){tr.items.push({name:t.value,qty:1,flags:[]});tr.flags=tr.flags.filter(f=>!f.includes('自己補上'))}
@@ -1270,6 +1369,7 @@ document.addEventListener('change',e=>{
   }
   if(!(t instanceof HTMLInputElement))return;
   if(t.id==='scan-file'){const fs=Array.from(t.files||[]);if(fs.length)runOcr(fs);return}
+  if(t.dataset.k==='b-count'){const x=S.batch.find(y=>y.pill===t.dataset.p);if(x){x.count=clamp(parseInt(t.value,10)||1,1,99);save()}render();return}
   if(t.dataset.k==='scan-qty'){const tr=scanTrial(t.dataset.t),it=tr&&tr.items.find(i=>i.name===t.dataset.n);if(it){it.qty=clamp(parseInt(t.value,10)||1,1,99);it.flags=[]}render();return}
   if(t.dataset.k==='scan-pill'){const tr=scanTrial(t.dataset.t);if(tr){tr.pill=t.value;tr.flags=tr.flags.filter(f=>!f.includes('丹藥名稱')&&!f.includes('不在已知丹藥'))}render();return}
   if(t.dataset.k==='count'){S.count=clamp(parseInt(t.value,10)||1,1,99);save();render()}
