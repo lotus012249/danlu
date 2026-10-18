@@ -1,0 +1,915 @@
+<!doctype html>
+<html lang="zh-TW">
+<meta charset="utf-8">
+<title>丹爐煉藥研究所</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#6B5A92">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@700&display=swap">
+<style>
+/* Layout: one column, six-tab bar at the bottom. Morandi lavender ground; purple = what you act on,
+   blue = known results, pink = things you recorded yourself. Danger is a separate brick red.
+   The trial bench lights up ingredient tiles directly, so a hint sits where the finger is. */
+:root{
+  --bg:#ECE9F1; --surface:#F8F6FA; --surface-2:#E0DBE9; --fg:#2B2636; --fg-2:#5E576F; --line:#D0C9DC;
+  --accent:#6B5A92; --accent-soft:#DDD6EB; --on-accent:#FBF9FE;
+  --blue:#4F6E96; --blue-soft:#DCE4EF; --on-blue:#FFFFFF;
+  --pink:#A0607A; --pink-soft:#F0DEE6;
+  --crit:#A8443C; --crit-soft:#F3DBD7; --on-crit:#FFFFFF;
+  --warn:#86651F; --warn-soft:#EEE3C8; --ok:#4F7A62;
+  --t1:#8B8597; --t2:#6A8DB8; --t3:#8A73B4; --t4:#C7819B; --t5:#BE953F;
+  --font-display:'Noto Serif TC','Songti TC','PMingLiU',serif;
+  --font-body:'Noto Sans TC','PingFang TC','Microsoft JhengHei',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1C1925; --surface:#25212F; --surface-2:#302B3D; --fg:#ECE8F3; --fg-2:#AAA3BC; --line:#3A3450;
+    --accent:#B5A3DC; --accent-soft:#383050; --on-accent:#1A1524;
+    --blue:#8EAAD2; --blue-soft:#27324A; --on-blue:#121B2A;
+    --pink:#E3A9BC; --pink-soft:#3D2733;
+    --crit:#F0928A; --crit-soft:#41231F; --on-crit:#2A100D;
+    --warn:#E2BC6A; --warn-soft:#3A3120; --ok:#8FC4A8;
+    --t1:#A29CAE; --t2:#8EAAD2; --t3:#B5A3DC; --t4:#E3A9BC; --t5:#E2C27A; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1C1925; --surface:#25212F; --surface-2:#302B3D; --fg:#ECE8F3; --fg-2:#AAA3BC; --line:#3A3450;
+  --accent:#B5A3DC; --accent-soft:#383050; --on-accent:#1A1524;
+  --blue:#8EAAD2; --blue-soft:#27324A; --on-blue:#121B2A;
+  --pink:#E3A9BC; --pink-soft:#3D2733;
+  --crit:#F0928A; --crit-soft:#41231F; --on-crit:#2A100D;
+  --warn:#E2BC6A; --warn-soft:#3A3120; --ok:#8FC4A8;
+  --t1:#A29CAE; --t2:#8EAAD2; --t3:#B5A3DC; --t4:#E3A9BC; --t5:#E2C27A; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:16px 96px;-webkit-text-size-adjust:100%}
+.wrap{max-width:560px;margin-inline:auto;display:flex;flex-direction:column;gap:16px}
+h1,h2,h3,p{margin:0}
+.brand{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.brand h1{font-family:var(--font-display);font-size:28px;letter-spacing:.08em;line-height:1.2;color:var(--accent)}
+.brand p{color:var(--fg-2);font-size:13px}
+h2{font-size:13px;font-weight:700;letter-spacing:.12em;color:var(--fg-2)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.hint{color:var(--fg-2);font-size:13px}
+.banner{background:var(--pink-soft);color:var(--fg);border-radius:8px;padding:10px 12px;font-size:13px}
+.banner b{color:var(--pink)}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pills{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.pk{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 6px;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.3}
+.pk small{font-size:11px;color:var(--fg-2)}
+.pk[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.pk[aria-pressed="true"] small{color:var(--on-accent);opacity:.85}
+.line{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.line .lbl{display:flex;flex-direction:column;min-width:0}
+.stepper{display:inline-flex;align-items:stretch;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--bg)}
+.stepper button{width:40px;min-height:40px;border:0;background:transparent;font-size:20px;line-height:1}
+.stepper button:active{background:var(--surface-2)}
+.stepper input{width:46px;border:0;border-inline:1px solid var(--line);text-align:center;background:var(--surface);color:var(--fg);font:inherit;font-variant-numeric:tabular-nums;-moz-appearance:textfield;appearance:textfield;padding:0}
+.stepper input::-webkit-outer-spin-button,.stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;border:0;background:transparent;padding:2px 0;text-align:left}
+.switch .track{flex:none;width:44px;height:26px;border-radius:13px;background:var(--surface-2);border:1px solid var(--line);position:relative;transition:background .15s}
+.switch .track::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--fg-2);transition:transform .15s,background .15s}
+.switch[aria-checked="true"] .track{background:var(--accent);border-color:var(--accent)}
+.switch[aria-checked="true"] .track::after{transform:translateX(18px);background:var(--on-accent)}
+.summary{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.summary strong{font-family:var(--font-display);font-size:20px}
+.num{font-variant-numeric:tabular-nums}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.card.best{border:2px solid var(--accent);padding:13px 15px}
+.card .head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.card .who{display:flex;flex-direction:column;gap:4px;min-width:0}
+.tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.tag{font-size:12px;border-radius:999px;padding:1px 9px;background:var(--surface-2);color:var(--fg-2);white-space:nowrap}
+.tag.best{background:var(--accent);color:var(--on-accent)}
+.tag.mine{background:var(--pink-soft);color:var(--pink)}
+.code{font-size:12px;color:var(--fg-2);letter-spacing:.06em}
+.price{text-align:right;flex:none}
+.price b{font-family:var(--font-display);font-size:30px;line-height:1.1;font-variant-numeric:tabular-nums;display:block}
+.price span{font-size:12px;color:var(--fg-2)}
+.meta{display:flex;gap:6px 14px;flex-wrap:wrap;font-size:13px;color:var(--fg-2)}
+.meta b{color:var(--fg);font-weight:500}
+ul.ing{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+ul.ing li{display:grid;grid-template-columns:1fr auto auto;gap:4px 12px;align-items:baseline;padding:7px 0;border-top:1px solid var(--line)}
+ul.ing li:first-child{border-top:0}
+ul.ing .nm{display:flex;align-items:center;gap:8px;min-width:0}
+ul.ing .nm small{color:var(--fg-2);font-size:12px}
+ul.ing .q{font-variant-numeric:tabular-nums;color:var(--fg-2);min-width:2.2em;text-align:right}
+ul.ing .buy{font-variant-numeric:tabular-nums;min-width:5.5em;text-align:right;font-weight:500}
+ul.ing .buy.free{color:var(--ok);font-weight:400}
+.dot{display:inline-block;flex:none;width:9px;height:9px;border-radius:50%}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:2px 8px;font-size:13px;white-space:nowrap}
+.chip b{font-weight:500;color:var(--fg-2);font-variant-numeric:tabular-nums}
+.chip.boom{border-color:var(--crit);color:var(--crit)}
+.chip.boom b{color:var(--crit)}
+.chip.pill{border-color:var(--blue);color:var(--blue)}
+.chip.pill b{color:var(--blue)}
+button.chip{min-height:32px;background:var(--surface)}
+.alert{border-radius:8px;padding:9px 12px;font-size:13px;display:flex;flex-direction:column;gap:4px;border:1px solid transparent}
+.alert b{font-size:13px}
+.alert .rule{color:var(--fg-2)}
+.alert.critical{background:var(--crit-soft);border-color:var(--crit)}
+.alert.critical>b{color:var(--crit)}
+.alert.pending{background:var(--warn-soft);border-color:var(--warn)}
+.alert.pending>b{color:var(--warn)}
+.alert.suspect{background:transparent;border:1px dashed var(--warn)}
+.alert.suspect>b{color:var(--warn)}
+.alert.info{background:var(--surface-2)}
+.alert.recipe{background:var(--blue-soft);border-color:var(--blue)}
+.alert.recipe>b{color:var(--blue)}
+.alert.safe{background:var(--accent-soft)}
+.alert.safe>b{color:var(--accent)}
+.btn{border:1px solid var(--accent);color:var(--accent);background:transparent;border-radius:8px;min-height:42px;padding:0 14px;font-weight:500}
+.btn.solid{background:var(--accent);color:var(--on-accent)}
+.btn.armed{background:var(--crit);border-color:var(--crit);color:var(--on-crit)}
+.btn.quiet{border-color:var(--line);color:var(--fg-2)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.actions .btn{flex:1 1 140px}
+details{border-radius:8px}
+summary{cursor:pointer;color:var(--fg-2);font-size:13px;min-height:32px;display:flex;align-items:center}
+details .alert,details .rule-row{margin-top:6px}
+.rule-row{font-size:13px;display:flex;gap:10px;align-items:baseline}
+.rule-row .code{flex:none;min-width:2.8em}
+.grp{display:flex;flex-direction:column;gap:10px}
+.grp h3{display:flex;align-items:center;gap:8px;font-family:var(--font-display);font-size:18px}
+.grp h3 small{font-family:var(--font-body);font-size:12px;color:var(--fg-2);font-weight:400;margin-left:auto}
+.search,.in-text,select.in-text{width:100%;min-height:44px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg);font:inherit;padding:0 12px}
+textarea.ta{width:100%;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg);font:inherit;font-size:14px;padding:10px 12px;resize:vertical;min-height:96px}
+.rows{display:flex;flex-direction:column}
+.row{display:grid;grid-template-columns:1fr auto;gap:2px 12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row .nm{display:flex;align-items:center;gap:8px}
+.row .sub{grid-column:1;color:var(--fg-2);font-size:12px}
+.row .val{grid-row:1/3;grid-column:2;text-align:right;font-variant-numeric:tabular-nums}
+.stick{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px;display:flex;flex-direction:column;gap:8px}
+.srow{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.st{font-weight:700}
+.st.boom{color:var(--crit)}.st.pill{color:var(--blue)}.st.warn{color:var(--warn)}.st.empty,.st.unknown{color:var(--fg-2)}
+.tray{display:flex;gap:6px;overflow-x:auto;min-height:34px;align-items:center;padding-bottom:2px}
+.tray .chip{flex:none}
+.result{border-radius:10px;padding:14px 16px;border:1px solid var(--line);display:flex;flex-direction:column;gap:8px;background:var(--surface)}
+.result .big{font-family:var(--font-display);font-size:24px;line-height:1.25}
+.result.boom{background:var(--crit-soft);border-color:var(--crit)}
+.result.boom .big{color:var(--crit)}
+.result.pill{background:var(--blue-soft);border-color:var(--blue)}
+.result.pill .big{color:var(--blue)}
+.result.unknown{border-style:dashed}
+.mixgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.tile{position:relative;border:1px solid var(--line);background:var(--surface);border-radius:8px}
+.tile .add{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;min-height:74px;padding:8px 10px;border:0;background:transparent;text-align:left;border-radius:8px}
+.tile .add:active{background:var(--surface-2)}
+.tile.on{border-color:var(--accent);background:var(--accent-soft)}
+.tile.boom{border:2px solid var(--crit)}
+.tile.pill{border:2px solid var(--blue)}
+.tile.warn{border:2px dashed var(--warn)}
+.tile .tn{display:flex;align-items:center;gap:6px;font-size:14px}
+.tile .tp{display:flex;gap:8px;font-size:12px;color:var(--fg-2);align-items:baseline}
+.tile .cnt{color:var(--accent);font-weight:700}
+.tile .sub{position:absolute;right:4px;bottom:4px;width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font-size:18px;line-height:1}
+.mk{font-size:11px;border-radius:4px;padding:0 6px;line-height:1.5;margin-top:2px;white-space:nowrap}
+.mk.boom{background:var(--crit);color:var(--on-crit)}
+.mk.pill{background:var(--blue);color:var(--on-blue)}
+.mk.warn{background:var(--warn-soft);color:var(--warn);border:1px solid var(--warn)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
+  padding:0 max(4px,env(safe-area-inset-left,0px)) env(safe-area-inset-bottom,0px) max(4px,env(safe-area-inset-right,0px))}
+nav.tabs .in{max-width:560px;margin-inline:auto;display:grid;grid-template-columns:repeat(6,1fr)}
+nav.tabs button{border:0;background:transparent;min-height:58px;font-size:14px;font-weight:500;color:var(--fg-2);position:relative;padding:0}
+nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
+nav.tabs button[aria-current="page"]::before{content:"";position:absolute;top:0;left:22%;right:22%;height:3px;border-radius:0 0 3px 3px;background:var(--accent)}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:14px;z-index:30;max-width:90vw}
+.foot{color:var(--fg-2);font-size:12px;text-align:center;padding-top:4px}
+.empty{padding:22px 16px;text-align:center;color:var(--fg-2);align-items:center}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<div class="wrap" id="app"></div>
+<div id="toast" role="status" hidden></div>
+<script>
+// 丹爐・煉藥研究所：核心計算邏輯（純函式，不碰介面與資料庫）
+// 規則來源：企劃書第四節與第十節。官方價格是唯一價格來源；沒有價格的藥材不當成免費。
+
+// 名稱別名 → 標準名稱（企劃書第五節）
+const ALIASES = {
+  人蔘: '人參',
+  九陽蔘: '九陽參',
+  九天玄蔘: '九幽玄參',
+  九天玄參: '九幽玄參',
+};
+const PILL_ALIASES = { 煉氣丹: '練氣丹' };
+
+const canonicalName = (name) => ALIASES[name] ?? name;
+const canonicalPill = (name) => PILL_ALIASES[name] ?? name;
+
+// 把 [{name, qty}] 合併成 Map(標準名稱 → 總數量)；重複藥材加總
+function mergeItems(items) {
+  const m = new Map();
+  for (const { name, qty } of items) {
+    if (!Number.isInteger(qty) || qty <= 0) throw new Error(`數量必須是正整數：${name} × ${qty}`);
+    const n = canonicalName(name);
+    m.set(n, (m.get(n) ?? 0) + qty);
+  }
+  return m;
+}
+
+// prices: { 藥材名: 單價 }。缺價格就回報 missing，不當成 0。
+function theoreticalCost(need, prices) {
+  let total = 0;
+  const missing = [];
+  for (const [name, qty] of need) {
+    const p = prices[name];
+    if (p === undefined) missing.push(name);
+    else total += p * qty;
+  }
+  return { total: missing.length ? null : total, missing };
+}
+
+// 缺少量 = max(需求 − 持有, 0)
+function shortage(need, stock = {}) {
+  const out = new Map();
+  for (const [name, qty] of need) {
+    const lack = Math.max(qty - (stock[name] ?? 0), 0);
+    if (lack > 0) out.set(name, lack);
+  }
+  return out;
+}
+
+const scale = (need, times) => new Map([...need].map(([n, q]) => [n, q * times]));
+
+// ---- 炸爐比對 ----
+// exact：種類與數量都相同；contains：配方每種藥材數量都不少於炸爐組合（且不完全相同）；
+// overlap：只有部分藥材相同；none：沒有共同藥材
+function matchMode(recipeNeed, ruleNeed) {
+  let shared = 0;
+  let covers = true;
+  for (const [n, q] of ruleNeed) {
+    const have = recipeNeed.get(n) ?? 0;
+    if (have > 0) shared++;
+    if (have < q) covers = false;
+  }
+  if (shared === 0) return 'none';
+  const sameKinds = recipeNeed.size === ruleNeed.size;
+  if (covers && sameKinds && [...recipeNeed].every(([n, q]) => ruleNeed.get(n) === q)) return 'exact';
+  if (covers) return 'contains';
+  return 'overlap';
+}
+
+// 警報分級：完全相同＋已確認 → critical（排除）；完全相同＋待驗證 → pending（警告）；
+// 包含 → suspect（疑似衝突）；部分重疊 → info（只提示，不判定）
+function checkBlast(items, rules) {
+  const need = mergeItems(items);
+  const hits = [];
+  for (const rule of rules) {
+    const mode = matchMode(need, mergeItems(rule.items));
+    if (mode === 'none') continue;
+    // 只有「完全相同」可判定為炸爐。實際資料已有反例：大還丹（白芷＋寒心草＋人參）
+    // 是有效配方，卻包含炸爐組合「人參×1、白芷×1」，所以「包含」只能算疑似。
+    let level;
+    if (mode === 'overlap') level = 'info';
+    else if (mode === 'contains') level = 'suspect';
+    else level = rule.status === '已確認' ? 'critical' : 'pending';
+    hits.push({ code: rule.code, mode, level, basis: describe(mode, rule.status) });
+  }
+  const order = { critical: 0, pending: 1, suspect: 2, info: 3 };
+  hits.sort((a, b) => order[a.level] - order[b.level]);
+  return hits;
+}
+
+function describe(mode, status) {
+  if (mode === 'overlap') return '與已知炸爐組合部分重疊，不能判定會炸爐';
+  if (mode === 'contains') return `包含已知炸爐組合，是否會炸爐尚不能確定（炸爐紀錄狀態：${status}）`;
+  return `與已知炸爐組合完全相同（炸爐紀錄狀態：${status}）`;
+}
+
+// ---- 最低成本計算 ----
+/**
+ * @param opts.pill            丹藥名稱（可寫煉氣丹，會轉成練氣丹）
+ * @param opts.count           要做幾份
+ * @param opts.recipes         全部配方 [{code,pill,status,items}]
+ * @param opts.prices          { 藥材: 單價 }
+ * @param opts.stock           { 藥材: 持有量 }
+ * @param opts.useStock        是否扣抵個人庫存
+ * @param opts.allowUnverified 是否納入非「已驗證」配方
+ * @param opts.failureRules    炸爐組合
+ * 回傳 { verified: [...], unverified: [...], excluded: [...] }，各組依採購成本由低到高
+ */
+function planPill(opts) {
+  const { pill, count = 1, recipes, prices, stock = {}, useStock = true, allowUnverified = false, failureRules = [] } = opts;
+  if (!Number.isInteger(count) || count <= 0) throw new Error('數量必須是正整數');
+  const target = canonicalPill(pill);
+  const rows = recipes
+    .filter((r) => canonicalPill(r.pill) === target)
+    .map((r) => {
+      const need = scale(mergeItems(r.items), count);
+      const theory = theoreticalCost(need, prices);
+      const lack = useStock ? shortage(need, stock) : need;
+      const purchase = theoreticalCost(lack, prices);
+      const blast = checkBlast(r.items, failureRules);
+      return {
+        code: r.code,
+        status: r.status,
+        need: Object.fromEntries(need),
+        theoryCost: theory.total,
+        deducted: Object.fromEntries([...need].map(([n, q]) => [n, q - (lack.get(n) ?? 0)]).filter(([, d]) => d > 0)),
+        toBuy: Object.fromEntries(lack),
+        purchaseCost: purchase.total,
+        missingPrice: theory.missing,
+        blast,
+        excluded: blast.some((b) => b.level === 'critical'),
+      };
+    });
+  const kept = rows.filter((r) => !r.excluded);
+  const byCost = (a, b) => (a.purchaseCost ?? Infinity) - (b.purchaseCost ?? Infinity);
+  const verified = kept.filter((r) => r.status === '已驗證').sort(byCost);
+  const unverified = allowUnverified ? kept.filter((r) => r.status !== '已驗證').sort(byCost) : [];
+  const cheapest = verified[0] ?? unverified[0];
+  for (const r of [...verified, ...unverified]) {
+    r.diffFromCheapest = cheapest && r.purchaseCost !== null && cheapest.purchaseCost !== null ? r.purchaseCost - cheapest.purchaseCost : null;
+  }
+  return { verified, unverified, excluded: rows.filter((r) => r.excluded) };
+}
+
+// ---- 試煉：預測與下一步提示 ----
+// a 的每種藥材數量都不超過 b（a 是 b 的子集合）
+function isSubset(a, b) {
+  for (const [n, q] of a) if ((b.get(n) ?? 0) < q) return false;
+  return true;
+}
+function sameMix(a, b) {
+  return a.size === b.size && [...a].every(([n, q]) => b.get(n) === q);
+}
+// 組合的穩定字串，用來判斷兩組是否相同
+function mixKey(items) {
+  return [...mergeItems(items)]
+    .sort((x, y) => (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0))
+    .map(([n, q]) => `${n}×${q}`)
+    .join('、');
+}
+// 這組混合會變成什麼：完全相同的配方、完全相同的炸爐、包含的炸爐、部分重疊的炸爐
+function predictMix(items, recipes, rules) {
+  const need = mergeItems(items);
+  const out = { recipes: [], blasts: [], contained: [], overlaps: [] };
+  for (const r of recipes) if (sameMix(need, mergeItems(r.items))) out.recipes.push(r);
+  for (const rule of rules) {
+    const mode = matchMode(need, mergeItems(rule.items));
+    if (mode === 'exact') out.blasts.push(rule);
+    else if (mode === 'contains') out.contained.push(rule);
+    else if (mode === 'overlap') out.overlaps.push(rule);
+  }
+  return out;
+}
+// 以目前選的藥材為基礎，再加幾份就會變成某個已知配方或炸爐組合。
+// 只列「目前選的每種數量都不超過目標」的組合；total = 還差幾份。
+function nextSteps(items, recipes, rules, maxMissing = 3) {
+  if (!items.length) return [];
+  const need = mergeItems(items);
+  const res = [];
+  const consider = (kind, target) => {
+    const t = mergeItems(target.items);
+    if (!isSubset(need, t)) return;
+    const missing = [];
+    let total = 0;
+    for (const [n, q] of t) {
+      const d = q - (need.get(n) ?? 0);
+      if (d > 0) { missing.push({ name: n, qty: d }); total += d; }
+    }
+    if (total === 0 || total > maxMissing) return;
+    res.push({ kind, code: target.code, pill: target.pill, missing, total });
+  };
+  for (const r of recipes) consider('recipe', r);
+  for (const r of rules) consider('blast', r);
+  const k = { blast: 0, recipe: 1 };
+  res.sort((a, b) => a.total - b.total || k[a.kind] - k[b.kind] || (a.code < b.code ? -1 : 1));
+  return res;
+}
+
+// ---- 解析 /抓藥 訊息：每一行「藥名〔品階〕－ 價格 碎銀」算一份 ----
+function parseHaul(text, prices = null) {
+  const items = new Map();
+  const unknown = [];
+  const mismatch = [];
+  for (const line of String(text).split(/\r?\n/)) {
+    const m = line.match(/([㐀-鿿]{2,6})\s*(?:〔[^〕]*〕)?\s*[－\-—–−]\s*(\d+)\s*碎銀/);
+    if (!m) continue;
+    const name = canonicalName(m[1]);
+    const price = Number(m[2]);
+    if (prices && !(name in prices)) { unknown.push(m[1]); continue; }
+    if (prices && prices[name] !== price) mismatch.push({ name, price, official: prices[name] });
+    items.set(name, (items.get(name) ?? 0) + 1);
+  }
+  return { items, unknown, mismatch };
+}
+
+const DATA = {"ingredients":[{"name":"青露草","tier":"平凡","price":12},{"name":"甘草","tier":"平凡","price":12},{"name":"赤根草","tier":"平凡","price":15},{"name":"白芷","tier":"平凡","price":18},{"name":"黃精","tier":"良品","price":28},{"name":"寒心草","tier":"良品","price":30},{"name":"火棗","tier":"良品","price":35},{"name":"月華草","tier":"良品","price":38},{"name":"人參","tier":"珍稀","price":55},{"name":"寒露花","tier":"珍稀","price":60},{"name":"丹陽花","tier":"珍稀","price":70},{"name":"雪蓮","tier":"珍稀","price":75},{"name":"朱果","tier":"罕見","price":110},{"name":"冰心蘭","tier":"罕見","price":120},{"name":"烈火芝","tier":"罕見","price":140},{"name":"玄霜芝","tier":"罕見","price":150},{"name":"九陽參","tier":"絕世","price":220},{"name":"太陰蓮","tier":"絕世","price":240},{"name":"九幽玄參","tier":"絕世","price":290},{"name":"赤龍果","tier":"絕世","price":300}],"recipes":[{"code":"R01","pill":"築基丹","status":"待驗證","items":[{"name":"白芷","qty":1},{"name":"黃精","qty":1},{"name":"甘草","qty":1}]},{"code":"R02","pill":"築基丹","status":"待驗證","items":[{"name":"人參","qty":1},{"name":"甘草","qty":1}]},{"code":"R03","pill":"築基丹","status":"待驗證","items":[{"name":"甘草","qty":1},{"name":"青露草","qty":1},{"name":"火棗","qty":1}]},{"code":"R04","pill":"小還丹","status":"待驗證","items":[{"name":"赤根草","qty":1},{"name":"寒心草","qty":1},{"name":"白芷","qty":1}]},{"code":"R05","pill":"大還丹","status":"待驗證","items":[{"name":"白芷","qty":1},{"name":"寒心草","qty":1},{"name":"雪蓮","qty":1}]},{"code":"R06","pill":"大還丹","status":"待驗證","items":[{"name":"甘草","qty":1},{"name":"白芷","qty":1},{"name":"寒露花","qty":1}]},{"code":"R07","pill":"大還丹","status":"待驗證","items":[{"name":"白芷","qty":1},{"name":"寒心草","qty":1},{"name":"人參","qty":1}]},{"code":"R08","pill":"虎力丹","status":"待驗證","items":[{"name":"甘草","qty":2},{"name":"人參","qty":2},{"name":"月華草","qty":1}]},{"code":"R09","pill":"行功丹","status":"待驗證","items":[{"name":"寒心草","qty":1},{"name":"雪蓮","qty":1},{"name":"玄霜芝","qty":1}]},{"code":"R10","pill":"練氣丹","status":"待驗證","items":[{"name":"甘草","qty":2},{"name":"朱果","qty":1},{"name":"烈火芝","qty":1}]},{"code":"R11","pill":"練氣丹","status":"待驗證","items":[{"name":"白芷","qty":3},{"name":"黃精","qty":3},{"name":"丹陽花","qty":1}]},{"code":"R12","pill":"練氣丹","status":"待驗證","items":[{"name":"赤根草","qty":2},{"name":"火棗","qty":1},{"name":"九陽參","qty":1}]},{"code":"R13","pill":"練氣丹","status":"待驗證","items":[{"name":"火棗","qty":1},{"name":"人參","qty":1},{"name":"烈火芝","qty":1}]},{"code":"R14","pill":"練氣丹","status":"待驗證","items":[{"name":"火棗","qty":1},{"name":"丹陽花","qty":1},{"name":"烈火芝","qty":1}]},{"code":"R15","pill":"通脈丹","status":"待驗證","items":[{"name":"太陰蓮","qty":1},{"name":"人參","qty":2},{"name":"月華草","qty":2}]},{"code":"R16","pill":"通脈丹","status":"待驗證","items":[{"name":"九幽玄參","qty":1},{"name":"雪蓮","qty":1},{"name":"冰心蘭","qty":1}]},{"code":"R17","pill":"通脈丹","status":"待驗證","items":[{"name":"白芷","qty":3},{"name":"雪蓮","qty":3},{"name":"冰心蘭","qty":1}]},{"code":"R18","pill":"通脈丹","status":"待驗證","items":[{"name":"寒心草","qty":1},{"name":"赤龍果","qty":1},{"name":"玄霜芝","qty":1}]},{"code":"R19","pill":"培元丹","status":"待驗證","items":[{"name":"赤龍果","qty":1},{"name":"烈火芝","qty":1},{"name":"朱果","qty":1}]},{"code":"R20","pill":"金創藥","status":"待驗證","items":[{"name":"青露草","qty":3},{"name":"寒露花","qty":3},{"name":"冰心蘭","qty":1}]},{"code":"R21","pill":"金創藥","status":"待驗證","items":[{"name":"雪蓮","qty":1},{"name":"冰心蘭","qty":1},{"name":"玄霜芝","qty":1}]},{"code":"R22","pill":"黑玉斷續膏","status":"待驗證","items":[{"name":"白芷","qty":3},{"name":"月華草","qty":3},{"name":"寒露花","qty":2},{"name":"九幽玄參","qty":1}]},{"code":"R23","pill":"黑玉斷續膏","status":"待驗證","items":[{"name":"青露草","qty":3},{"name":"月華草","qty":3},{"name":"雪蓮","qty":2},{"name":"九幽玄參","qty":1}]},{"code":"R24","pill":"黑玉斷續膏","status":"待驗證","items":[{"name":"寒心草","qty":3},{"name":"寒露花","qty":3},{"name":"冰心蘭","qty":2},{"name":"太陰蓮","qty":1}]},{"code":"R25","pill":"天罡丹","status":"待驗證","items":[{"name":"赤根草","qty":3},{"name":"火棗","qty":3},{"name":"丹陽花","qty":2},{"name":"赤龍果","qty":1}]},{"code":"R26","pill":"洗髓丹","status":"待驗證","items":[{"name":"黃精","qty":3},{"name":"人參","qty":3},{"name":"烈火芝","qty":2},{"name":"九陽參","qty":1}]}],"failureRules":[{"code":"A1","status":"已確認","items":[{"name":"青露草","qty":1},{"name":"黃精","qty":1},{"name":"丹陽花","qty":1}]},{"code":"A2","status":"已確認","items":[{"name":"白芷","qty":2},{"name":"朱果","qty":1},{"name":"赤龍果","qty":1}]},{"code":"A3","status":"已確認","items":[{"name":"烈火芝","qty":1},{"name":"火棗","qty":1},{"name":"朱果","qty":1}]},{"code":"A4","status":"已確認","items":[{"name":"九幽玄參","qty":1},{"name":"太陰蓮","qty":1},{"name":"月華草","qty":1}]},{"code":"A5","status":"已確認","items":[{"name":"九幽玄參","qty":1},{"name":"甘草","qty":1},{"name":"黃精","qty":1}]},{"code":"A6","status":"已確認","items":[{"name":"白芷","qty":1},{"name":"人參","qty":1},{"name":"冰心蘭","qty":1}]},{"code":"A7","status":"已確認","items":[{"name":"九陽參","qty":1},{"name":"烈火芝","qty":1},{"name":"丹陽花","qty":1}]},{"code":"A8","status":"已確認","items":[{"name":"太陰蓮","qty":1},{"name":"烈火芝","qty":1},{"name":"丹陽花","qty":1}]},{"code":"B1","status":"已確認","items":[{"name":"甘草","qty":3},{"name":"人參","qty":3},{"name":"朱果","qty":2},{"name":"九幽玄參","qty":1}]},{"code":"B2","status":"已確認","items":[{"name":"甘草","qty":4},{"name":"黃精","qty":2},{"name":"丹陽花","qty":1},{"name":"九陽參","qty":1}]},{"code":"B3","status":"已確認","items":[{"name":"甘草","qty":2},{"name":"太陰蓮","qty":1},{"name":"月華草","qty":1}]},{"code":"B4","status":"已確認","items":[{"name":"赤根草","qty":3},{"name":"火棗","qty":2},{"name":"黃精","qty":3},{"name":"九陽參","qty":1}]},{"code":"B5","status":"已確認","items":[{"name":"黃精","qty":3},{"name":"雪蓮","qty":2},{"name":"玄霜芝","qty":1}]},{"code":"B6","status":"已確認","items":[{"name":"月華草","qty":3},{"name":"雪蓮","qty":3},{"name":"冰心蘭","qty":1}]},{"code":"B7","status":"已確認","items":[{"name":"青露草","qty":5},{"name":"寒心草","qty":4},{"name":"寒露花","qty":3},{"name":"冰心蘭","qty":2},{"name":"太陰蓮","qty":1}]},{"code":"B8","status":"已確認","items":[{"name":"黃精","qty":3},{"name":"九陽參","qty":1},{"name":"丹陽花","qty":3}]},{"code":"B9","status":"已確認","items":[{"name":"九陽參","qty":1},{"name":"丹陽花","qty":3},{"name":"烈火芝","qty":3},{"name":"火棗","qty":3},{"name":"朱果","qty":3}]},{"code":"B10","status":"已確認","items":[{"name":"丹陽花","qty":2},{"name":"丹陽花","qty":2},{"name":"九陽參","qty":1},{"name":"朱果","qty":2}]},{"code":"B11","status":"已確認","items":[{"name":"赤根草","qty":4},{"name":"火棗","qty":4},{"name":"丹陽花","qty":3},{"name":"朱果","qty":2},{"name":"赤龍果","qty":1}]},{"code":"B12","status":"已確認","items":[{"name":"人參","qty":3},{"name":"丹陽花","qty":3},{"name":"赤龍果","qty":1}]},{"code":"B13","status":"已確認","items":[{"name":"朱果","qty":1},{"name":"赤根草","qty":2},{"name":"丹陽花","qty":2}]},{"code":"B14","status":"已確認","items":[{"name":"九陽參","qty":1},{"name":"青露草","qty":4},{"name":"月華草","qty":3},{"name":"烈火芝","qty":2}]},{"code":"B15","status":"已確認","items":[{"name":"九陽參","qty":1},{"name":"朱果","qty":2},{"name":"火棗","qty":2}]},{"code":"B16","status":"已確認","items":[{"name":"九陽參","qty":1},{"name":"白芷","qty":2},{"name":"丹陽花","qty":2}]},{"code":"B17","status":"已確認","items":[{"name":"白芷","qty":3},{"name":"黃精","qty":3},{"name":"雪蓮","qty":1}]},{"code":"B18","status":"已確認","items":[{"name":"朱果","qty":1},{"name":"烈火芝","qty":1},{"name":"赤龍果","qty":1},{"name":"九陽參","qty":1}]},{"code":"B19","status":"已確認","items":[{"name":"甘草","qty":1},{"name":"丹陽花","qty":1},{"name":"赤根草","qty":1}]},{"code":"B20","status":"已確認","items":[{"name":"月華草","qty":3},{"name":"雪蓮","qty":3},{"name":"冰心蘭","qty":2},{"name":"太陰蓮","qty":1}]},{"code":"C1","status":"已確認","items":[{"name":"甘草","qty":2},{"name":"朱果","qty":2},{"name":"冰心蘭","qty":1}]},{"code":"C2","status":"已確認","items":[{"name":"甘草","qty":2},{"name":"朱果","qty":1},{"name":"冰心蘭","qty":1}]},{"code":"C3","status":"已確認","items":[{"name":"甘草","qty":2},{"name":"人參","qty":2},{"name":"寒露花","qty":1}]},{"code":"C4","status":"已確認","items":[{"name":"青露草","qty":2},{"name":"白芷","qty":1},{"name":"玄霜芝","qty":1}]},{"code":"C5","status":"已確認","items":[{"name":"赤根草","qty":3},{"name":"丹陽花","qty":3},{"name":"赤龍果","qty":1}]},{"code":"C6","status":"已確認","items":[{"name":"赤根草","qty":3},{"name":"丹陽花","qty":3},{"name":"烈火芝","qty":1}]},{"code":"C7","status":"已確認","items":[{"name":"白芷","qty":3},{"name":"寒心草","qty":3},{"name":"冰心蘭","qty":2},{"name":"太陰蓮","qty":1}]},{"code":"C8","status":"已確認","items":[{"name":"青露草","qty":3},{"name":"寒心草","qty":3},{"name":"冰心蘭","qty":2},{"name":"太陰蓮","qty":1}]},{"code":"C9","status":"已確認","items":[{"name":"甘草","qty":3},{"name":"白芷","qty":2},{"name":"月華草","qty":2},{"name":"人參","qty":1}]},{"code":"C10","status":"已確認","items":[{"name":"寒心草","qty":1},{"name":"雪蓮","qty":1},{"name":"冰心蘭","qty":1}]},{"code":"C11","status":"已確認","items":[{"name":"白芷","qty":1},{"name":"寒心草","qty":1},{"name":"朱果","qty":1}]},{"code":"C12","status":"已確認","items":[{"name":"白芷","qty":1},{"name":"寒心草","qty":1},{"name":"寒露花","qty":1}]},{"code":"C13","status":"已確認","items":[{"name":"雪蓮","qty":1},{"name":"冰心蘭","qty":1},{"name":"九陽參","qty":1}]},{"code":"C14","status":"已確認","items":[{"name":"雪蓮","qty":2},{"name":"冰心蘭","qty":2},{"name":"九陽參","qty":1}]},{"code":"C15","status":"已確認","items":[{"name":"太陰蓮","qty":1},{"name":"冰心蘭","qty":1},{"name":"玄霜芝","qty":1}]},{"code":"D1","status":"已確認","items":[{"name":"火棗","qty":1},{"name":"九陽參","qty":1},{"name":"赤龍果","qty":1}]},{"code":"D2","status":"已確認","items":[{"name":"甘草","qty":2},{"name":"赤根草","qty":1}]},{"code":"D3","status":"已確認","items":[{"name":"丹陽花","qty":1},{"name":"寒心草","qty":1},{"name":"黃精","qty":1}]},{"code":"D4","status":"已確認","items":[{"name":"黃精","qty":1},{"name":"寒心草","qty":1}]},{"code":"D5","status":"已確認","items":[{"name":"赤龍果","qty":1},{"name":"人參","qty":1}]},{"code":"D6","status":"已確認","items":[{"name":"丹陽花","qty":2},{"name":"寒露花","qty":2},{"name":"白芷","qty":3}]},{"code":"D7","status":"已確認","items":[{"name":"丹陽花","qty":1},{"name":"人參","qty":1},{"name":"雪蓮","qty":1}]},{"code":"D8","status":"已確認","items":[{"name":"人參","qty":1},{"name":"白芷","qty":1}]},{"code":"D9","status":"已確認","items":[{"name":"赤根草","qty":3},{"name":"火棗","qty":3},{"name":"人參","qty":2},{"name":"赤龍果","qty":1}]},{"code":"D10","status":"已確認","items":[{"name":"甘草","qty":1},{"name":"白芷","qty":1},{"name":"人參","qty":1}]},{"code":"D11","status":"已確認","items":[{"name":"人參","qty":1},{"name":"甘草","qty":1},{"name":"火棗","qty":1}]}]};
+(function(){
+const TIER_VAR={平凡:'--t1',良品:'--t2',珍稀:'--t3',罕見:'--t4',絕世:'--t5'};
+const TIERS=['平凡','良品','珍稀','罕見','絕世'];
+const ING=DATA.ingredients;
+const PRICES=Object.fromEntries(ING.map(i=>[i.name,i.price]));
+const TIER_OF=Object.fromEntries(ING.map(i=>[i.name,i.tier]));
+const ALIAS_NOTE={人參:'亦寫作人蔘',九陽參:'亦寫作九陽蔘',九幽玄參:'亦寫作九天玄蔘'};
+const TABS=[['calc','計算'],['recipes','配方'],['lab','試煉'],['herbs','藥材'],['stock','庫存'],['log','紀錄']];
+const LABEL={critical:'確定炸爐',pending:'待驗證的炸爐組合',suspect:'疑似衝突',info:'部分重疊'};
+const EXAMPLE_STOCK={白芷:2,寒心草:1,人參:1};
+const KEY='danlu.v2',OLD_KEY='danlu.v1';
+/* Supabase 設定：留空就是純本機模式。填入專案網址與 anon 公開金鑰後，會出現登入與同步。
+   anon 金鑰本來就是公開的，安全靠 step7_auth.sql 的資料庫端權限，不要放 service_role 金鑰。 */
+const SUPABASE={url:'',anonKey:''};
+const SB={client:null,user:null,role:'member',state:SUPABASE.url&&SUPABASE.anonKey?'loading':'off',msg:'',others:[],lastStock:null};
+
+const S={tab:'calc',pill:'大還丹',count:1,useStock:true,allowUnverified:true,stock:{...EXAMPLE_STOCK},exampleStock:true,
+  mix:{白芷:1,寒心草:1},mixExample:true,log:[],nextId:1,q:'',armed:null,haulText:'',haulNote:'',newPill:'',logPill:'',importText:'',fallback:''};
+
+function normalizeEntry(e){
+  if(!e||typeof e!=='object'||(e.result!=='blast'&&e.result!=='recipe'))return null;
+  if(!Array.isArray(e.items)||!e.items.length||e.items.length>12)return null;
+  const raw=[];
+  for(const it of e.items){
+    if(!it||typeof it.name!=='string')return null;
+    const n=canonicalName(it.name);
+    if(!(n in PRICES)||!Number.isInteger(it.qty)||it.qty<1||it.qty>99)return null;
+    raw.push({name:n,qty:it.qty});
+  }
+  const items=[...mergeItems(raw)].map(([name,qty])=>({name,qty}));
+  let pill;
+  if(e.result==='recipe'){pill=canonicalPill(String(e.pill||'').trim());if(!pill||pill.length>8)return null}
+  return {result:e.result,pill,items,t:typeof e.t==='string'?e.t.slice(0,40):new Date().toISOString()};
+}
+try{
+  const s=JSON.parse(localStorage.getItem(KEY)||localStorage.getItem(OLD_KEY)||'{}');
+  if(s&&typeof s==='object'){
+    if(TABS.some(t=>t[0]===s.tab))S.tab=s.tab;
+    if(Number.isInteger(s.count)&&s.count>=1&&s.count<=99)S.count=s.count;
+    if(typeof s.pill==='string')S.pill=s.pill;
+    if(typeof s.useStock==='boolean')S.useStock=s.useStock;
+    if(typeof s.allowUnverified==='boolean')S.allowUnverified=s.allowUnverified;
+    if(s.stock&&typeof s.stock==='object'){
+      const st={};for(const [n,v] of Object.entries(s.stock)){if(n in PRICES&&Number.isInteger(v)&&v>0)st[n]=v}
+      S.stock=st;S.exampleStock=s.exampleStock===true;
+    }
+    if(Array.isArray(s.log)){
+      let id=1;
+      for(const e of s.log){const n=normalizeEntry(e);if(n){if(Number.isInteger(e.rid))n.rid=e.rid;n.id=Number.isInteger(e.id)&&e.id>0?e.id:id;id=Math.max(id,n.id+1);S.log.push(n)}}
+      S.nextId=Math.max(id,Number.isInteger(s.nextId)?s.nextId:1);
+    }
+  }
+}catch(e){}
+if(S.tab==='blast')S.tab='lab';
+
+let RECIPES,RULE_LIST,RULES,PILLS;
+function refreshWorld(){
+  const ur=S.log.filter(e=>e.result==='blast').map(e=>({code:'M'+e.id,status:'已確認',mine:true,items:e.items}));
+  const uc=S.log.filter(e=>e.result==='recipe').map(e=>({code:'M'+e.id,pill:e.pill,status:'已驗證',mine:true,items:e.items}));
+  // 其他成員的紀錄一律當「待驗證」：炸爐只警告、不排除；配方不列入已驗證
+  const go=SB.others.filter(e=>e.result==='blast').map(e=>({code:'G'+e.id,status:'待驗證',items:e.items}));
+  const gc=SB.others.filter(e=>e.result==='recipe').map(e=>({code:'G'+e.id,pill:e.pill,status:'待驗證',items:e.items}));
+  RECIPES=DATA.recipes.concat(uc,gc);RULE_LIST=DATA.failureRules.concat(ur,go);
+  RULES=Object.fromEntries(RULE_LIST.map(r=>[r.code,r]));
+  PILLS=[...new Set(RECIPES.map(r=>r.pill))];
+  if(!PILLS.includes(S.pill))S.pill=PILLS[0];
+}
+refreshWorld();
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify({tab:S.tab,pill:S.pill,count:S.count,useStock:S.useStock,allowUnverified:S.allowUnverified,stock:S.stock,exampleStock:S.exampleStock,log:S.log,nextId:S.nextId}))}catch(e){}scheduleStockSync()};
+
+/* ---------- Supabase 同步（只在設定好且已登入時動作） ---------- */
+const signedIn=()=>SB.state==='in'&&SB.client&&SB.user;
+let stockTimer;
+function scheduleStockSync(){
+  if(!signedIn()||S.exampleStock)return;
+  clearTimeout(stockTimer);stockTimer=setTimeout(pushStock,800);
+}
+async function pushStock(){
+  if(!signedIn())return;
+  const cur=JSON.stringify(S.stock);if(cur===SB.lastStock)return;
+  const rows=Object.entries(S.stock).filter(([n,q])=>n in PRICES&&q>0).map(([ingredient,qty])=>({user_id:SB.user.id,ingredient,qty}));
+  try{
+    if(rows.length){const r=await SB.client.from('inventory_items').upsert(rows);if(r.error)throw r.error}
+    const keep=rows.map(r=>r.ingredient);
+    const d=SB.client.from('inventory_items').delete().eq('user_id',SB.user.id);
+    const r2=keep.length?await d.not('ingredient','in','('+keep.map(n=>'"'+n+'"').join(',')+')'):await d;
+    if(r2.error)throw r2.error;
+    SB.lastStock=cur;
+  }catch(e){SB.msg='庫存同步失敗，稍後會再試：'+(e.message||e);scheduleStockSync();render()}
+}
+const entryRow=e=>({result:e.result,pill:e.pill||null,items:e.items});
+async function pushLogEntry(e){
+  if(!signedIn()||e.rid)return;
+  const r=await SB.client.from('research_logs').insert(entryRow(e)).select('id').single();
+  if(r.error)throw r.error;
+  e.rid=r.data.id;save();
+}
+async function loadRemote(){
+  if(!signedIn())return;
+  try{
+    const inv=await SB.client.from('inventory_items').select('ingredient,qty');
+    if(inv.error)throw inv.error;
+    if(inv.data.length){
+      const st={};for(const r of inv.data)if(r.ingredient in PRICES&&r.qty>0)st[r.ingredient]=r.qty;
+      S.stock=st;S.exampleStock=false;
+    }else if(!S.exampleStock&&Object.keys(S.stock).length){SB.lastStock=null;await pushStock()}
+    SB.lastStock=JSON.stringify(S.stock);
+    const lg=await SB.client.from('research_logs').select('id,user_id,result,pill,items,created_at').order('id');
+    if(lg.error)throw lg.error;
+    const mine=lg.data.filter(r=>r.user_id===SB.user.id),mineKeys=new Set(mine.map(r=>r.result+'|'+(r.pill||'')+'|'+mixKey(r.items)));
+    // 本機有、雲端沒有的紀錄補上傳；雲端有、本機沒有的拉下來
+    for(const e of S.log){
+      const k=e.result+'|'+(e.pill||'')+'|'+mixKey(e.items);
+      if(!e.rid&&!mineKeys.has(k))await pushLogEntry(e);
+      else if(!e.rid){const m=mine.find(r=>r.result+'|'+(r.pill||'')+'|'+mixKey(r.items)===k);if(m)e.rid=m.id}
+    }
+    const have=new Set(S.log.map(e=>e.rid));
+    for(const r of mine){
+      if(have.has(r.id))continue;
+      const n=normalizeEntry({result:r.result,pill:r.pill,items:r.items,t:r.created_at});
+      if(n)S.log.push({id:S.nextId++,rid:r.id,...n});
+    }
+    SB.others=[];
+    for(const r of lg.data){
+      if(r.user_id===SB.user.id)continue;
+      const n=normalizeEntry({result:r.result,pill:r.pill,items:r.items,t:r.created_at});
+      if(n)SB.others.push({id:r.id,...n});
+    }
+    const p=await SB.client.from('profiles').select('role').eq('user_id',SB.user.id).maybeSingle();
+    SB.role=p.data?p.data.role:'member';
+    SB.msg='';refreshWorld();save();render();
+  }catch(e){SB.msg='同步失敗：'+(e.message||e);render()}
+}
+async function initSupabase(){
+  if(SB.state==='off')return;
+  try{
+    await new Promise((ok,bad)=>{const s=document.createElement('script');
+      s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js';
+      s.onload=ok;s.onerror=()=>bad(new Error('無法載入登入元件，請確認網路'));document.head.appendChild(s)});
+    SB.client=window.supabase.createClient(SUPABASE.url,SUPABASE.anonKey,{auth:{persistSession:true,detectSessionInUrl:true}});
+    const apply=async session=>{
+      if(session&&SB.state==='in'&&SB.user&&SB.user.id===session.user.id){SB.user=session.user;return}
+      SB.user=session?session.user:null;SB.state=SB.user?'in':'out';
+      if(!SB.user){SB.others=[];refreshWorld();render();return}
+      render();await loadRemote();
+    };
+    SB.client.auth.onAuthStateChange((ev,session)=>{setTimeout(()=>apply(session),0)});
+    const {data}=await SB.client.auth.getSession();
+    if(data.session)await apply(data.session);else{SB.state='out';render()}
+  }catch(e){SB.state='out';SB.msg=String(e.message||e);render()}
+}
+
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>n==null?'—':Number(n).toLocaleString('zh-TW');
+const dot=n=>`<i class="dot" style="background:var(${TIER_VAR[TIER_OF[n]]})"></i>`;
+const chip=(n,q)=>`<span class="chip">${dot(n)}${esc(n)}<b>×${q}</b></span>`;
+const ruleText=r=>r.items.map(i=>`${i.name}×${i.qty}`).join('、');
+const mineTag=r=>r&&r.mine?'<span class="tag mine">我的紀錄</span>':'';
+const mixItems=()=>Object.entries(S.mix).filter(([,q])=>q>0).map(([name,qty])=>({name,qty}));
+const cost=items=>theoreticalCost(mergeItems(items),PRICES).total;
+
+function maxMake(items){
+  const need=mergeItems(items);let m=Infinity;
+  for(const [n,q] of need)m=Math.min(m,Math.floor((S.stock[n]||0)/q));
+  return m===Infinity?0:m;
+}
+function alertHtml(h){
+  const r=RULES[h.code];
+  return `<div class="alert ${h.level}"><b>${LABEL[h.level]}</b><span>${esc(h.basis)}</span><span class="rule">${h.code}　${esc(ruleText(r))}</span></div>`;
+}
+const ruleRow=(code,text)=>`<div class="rule-row"><span class="code">${esc(code)}</span><span>${esc(text)}</span></div>`;
+function alertsSplit(hits){
+  const main=hits.filter(h=>h.level!=='info'),info=hits.filter(h=>h.level==='info');
+  let out=main.map(alertHtml).join('');
+  if(info.length)out+=`<details><summary>另有 ${info.length} 組只部分重疊，不判定為炸爐</summary>${info.map(h=>ruleRow(h.code,ruleText(RULES[h.code]))).join('')}</details>`;
+  return out;
+}
+const stepper=(kind,n,val,i)=>`<div class="stepper"><button type="button" data-act="dec" data-k="${kind}" data-n="${esc(n)}" aria-label="減少${esc(n)}">−</button><input id="st-${kind}-${i}" type="number" inputmode="numeric" min="0" max="999" value="${val}" data-k="${kind}" data-n="${esc(n)}" aria-label="${esc(n)}數量"><button type="button" data-act="inc" data-k="${kind}" data-n="${esc(n)}" aria-label="增加${esc(n)}">+</button></div>`;
+const sw=(act,on,label,sub)=>`<button type="button" class="switch" role="switch" aria-checked="${on}" data-act="${act}"><span class="lbl"><span>${label}</span><small class="hint">${sub}</small></span><span class="track"></span></button>`;
+const plan=()=>planPill({pill:S.pill,count:S.count,recipes:RECIPES,prices:PRICES,stock:S.stock,useStock:S.useStock,allowUnverified:S.allowUnverified,failureRules:RULE_LIST});
+
+/* ---------- 計算 ---------- */
+function recipeCard(r,best){
+  const rec=RECIPES.find(x=>x.code===r.code);
+  const lines=Object.keys(r.need).map(n=>{
+    const buy=r.toBuy[n]||0,ded=r.deducted[n]||0;
+    const note=ded&&buy?` <small>（庫存 ${ded}）</small>`:'';
+    return `<li><span class="nm">${dot(n)}<span>${esc(n)}${note}</span></span><span class="q">×${r.need[n]}</span><span class="buy ${buy?'':'free'}">${buy?`買 ${buy} · ${fmt(buy*PRICES[n])}`:'用庫存'}</span></li>`;
+  }).join('');
+  const mk=S.useStock?maxMake(rec.items):0;
+  const dedCount=Object.keys(r.deducted).length;
+  const armed=S.armed===r.code;
+  const diff=r.diffFromCheapest;
+  const needBuy=Object.keys(r.toBuy).length>0;
+  return `<article class="card ${best?'best':''}">
+    <div class="head"><div class="who"><div class="tags">${best?'<span class="tag best">最低成本</span>':''}<span class="tag">${esc(r.status)}</span>${mineTag(rec)}</div><span class="code">配方 ${r.code}</span></div>
+    <div class="price"><b>${fmt(r.purchaseCost)}</b><span>${S.useStock?'需另付碎銀':'碎銀'}</span></div></div>
+    <div class="meta"><span>理論成本 <b class="num">${fmt(r.theoryCost)}</b></span>${dedCount?`<span>庫存抵扣 <b class="num">${fmt(r.theoryCost-r.purchaseCost)}</b></span>`:''}${diff>0?`<span>比最低多 <b class="num">${fmt(diff)}</b></span>`:''}${mk>=1?`<span>庫存最多可煉 <b class="num">${mk}</b> 份</span>`:''}</div>
+    <ul class="ing">${lines}</ul>
+    ${alertsSplit(r.blast)}
+    <div class="actions">${S.useStock&&dedCount?`<button type="button" class="btn ${armed?'armed':''}" data-act="brew" data-code="${r.code}">${armed?'再按一次，確認扣除庫存':'煉了這個，扣除庫存'}</button>`:''}${needBuy?`<button type="button" class="btn quiet" data-act="copy-list" data-code="${r.code}">複製採購清單</button>`:''}</div>
+  </article>`;
+}
+function calcView(){
+  const res=plan();
+  const all=[...res.verified,...res.unverified];
+  const total=RECIPES.filter(r=>r.pill===S.pill).length;
+  let body='';
+  if(!all.length){
+    body=`<div class="panel empty">${S.allowUnverified?'這種丹藥目前沒有可用配方。':'目前沒有已驗證的配方。來源提供的配方都是待驗證，打開上方「含待驗證配方」就能看到。'}</div>`;
+  }else{
+    if(res.verified.length)body+=`<h2>已驗證配方</h2>`+res.verified.map((r,i)=>recipeCard(r,i===0)).join('');
+    if(res.unverified.length)body+=`<h2>待驗證配方</h2>`+res.unverified.map((r,i)=>recipeCard(r,!res.verified.length&&i===0)).join('');
+  }
+  if(res.excluded.length)body+=`<details class="panel"><summary>已排除 ${res.excluded.length} 個配方（與確定炸爐的組合完全相同）</summary>${res.excluded.map(r=>ruleRow(r.code,r.blast.filter(b=>b.level==='critical').map(b=>b.code).join('、'))).join('')}</details>`;
+  const best=all[0];
+  return `${S.exampleStock?`<div class="banner"><b>目前用的是範例庫存</b>（白芷 2、寒心草 1、人參 1）。到「庫存」改成你自己的數量。</div>`:''}
+  <section class="panel"><h2>想煉什麼</h2>
+    <div class="pills">${PILLS.map(p=>`<button type="button" class="pk" aria-pressed="${p===S.pill}" data-act="pill" data-pill="${esc(p)}">${esc(p)}<small>${RECIPES.filter(r=>r.pill===p).length} 種配方</small></button>`).join('')}</div>
+    <div class="line"><span class="lbl"><span>煉製份數</span></span><div class="stepper"><button type="button" data-act="cnt-" aria-label="減少份數">−</button><input id="count" type="number" inputmode="numeric" min="1" max="99" value="${S.count}" data-k="count" aria-label="份數"><button type="button" data-act="cnt+" aria-label="增加份數">+</button></div></div>
+    ${sw('toggle-stock',S.useStock,'扣抵我的庫存','用庫存裡的藥材，只算還缺的')}
+    ${sw('toggle-unv',S.allowUnverified,'含待驗證配方','來源提供的配方都是待驗證')}
+  </section>
+  <div class="summary"><strong>${esc(S.pill)} × ${S.count}</strong><span class="hint num">${total} 種配方${best?`，最低 ${fmt(best.purchaseCost)} 碎銀`:''}</span></div>
+  ${body}`;
+}
+
+/* ---------- 配方 ---------- */
+function recipesView(){
+  const q=S.q.trim().toLowerCase();
+  const groups=PILLS.map(p=>[p,RECIPES.filter(r=>r.pill===p&&(!q||p.includes(q)||r.code.toLowerCase().includes(q)||r.items.some(i=>i.name.includes(q))))]).filter(g=>g[1].length);
+  const out=groups.map(([p,rs])=>{
+    const costs=rs.map(r=>cost(r.items));
+    return `<section class="grp"><h3>${esc(p)}<small class="num">${rs.length} 種 · 最低 ${fmt(Math.min(...costs))}</small></h3>${rs.map((r,i)=>`<article class="card"><div class="head"><div class="who"><div class="tags"><span class="tag">${esc(r.status)}</span>${mineTag(r)}</div><span class="code">配方 ${r.code}</span></div><div class="price"><b>${fmt(costs[i])}</b><span>理論成本</span></div></div><div class="chips">${r.items.map(it=>chip(it.name,it.qty)).join('')}</div><div class="actions"><button type="button" class="btn" data-act="try" data-pill="${esc(p)}">拿去試算</button><button type="button" class="btn quiet" data-act="to-lab" data-code="${r.code}">放進試煉台</button></div></article>`).join('')}</section>`;
+  }).join('');
+  return `<section class="panel"><h2>配方</h2><input id="q-recipes" class="search" type="search" placeholder="搜尋丹藥、藥材或配方編號" value="${esc(S.q)}" aria-label="搜尋配方"><p class="hint">${RECIPES.length} 筆配方，同一種丹藥可以有多種配方。成本是依官方價格算的理論成本。</p></section><div id="recipe-list" style="display:contents">${out||'<div class="panel empty">找不到符合的配方。</div>'}</div>`;
+}
+
+/* ---------- 試煉 ---------- */
+function labView(){
+  const items=mixItems();
+  const n=items.reduce((a,i)=>a+i.qty,0);
+  const pred=items.length?predictMix(items,RECIPES,RULE_LIST):null;
+  const steps=nextSteps(items,RECIPES,RULE_LIST,3);
+  const mark={};
+  for(const s of steps.filter(s=>s.total===1)){
+    const nm=s.missing[0].name;(mark[nm]=mark[nm]||{boom:[],warn:[],pill:[]});
+    if(s.kind==='blast'){(RULES[s.code].status==='已確認'?mark[nm].boom:mark[nm].warn).push(s.code)}else if(!mark[nm].pill.includes(s.pill))mark[nm].pill.push(s.pill);
+  }
+  let state='empty',stText='尚未選藥材';
+  if(pred){
+    const confirmed=pred.blasts.filter(r=>r.status==='已確認'),pend=pred.blasts.filter(r=>r.status!=='已確認');
+    if(confirmed.length){state='boom';stText='會炸爐'}
+    else if(pred.recipes.length){state='pill';stText='煉成 '+[...new Set(pred.recipes.map(r=>r.pill))].join('、')}
+    else if(pend.length){state='warn';stText='待驗證的炸爐組合'}
+    else{state=pred.contained.length?'warn':'unknown';stText=pred.contained.length?'疑似衝突':'資料庫沒有這組'}
+  }
+  const tray=items.length?items.map(i=>`<button type="button" class="chip" data-act="mix-sub" data-n="${esc(i.name)}" aria-label="減少${esc(i.name)}">${dot(i.name)}${esc(i.name)}<b>×${i.qty}</b><span aria-hidden="true">−</span></button>`).join(''):'<span class="hint">點下面的藥材加進來</span>';
+  const bar=`<div class="stick"><div class="srow"><span class="st ${state}">${stText}</span><span class="hint num">${items.length?`共 ${n} 份 · ${fmt(cost(items))} 碎銀`:''}</span><button type="button" class="btn quiet" data-act="mix-clear" style="min-height:34px;padding:0 10px">清除</button></div><div class="tray">${tray}</div></div>`;
+
+  let result='';
+  if(pred){
+    const contained=pred.contained.map(r=>alertHtml({code:r.code,level:'suspect',basis:'包含已知炸爐組合，是否會炸爐尚不能確定'})).join('');
+    const ov=pred.overlaps.length?`<details><summary>另有 ${pred.overlaps.length} 組只部分重疊，不判定為炸爐</summary>${pred.overlaps.map(r=>ruleRow(r.code,ruleText(r))).join('')}</details>`:'';
+    if(state==='boom'){
+      result=`<div class="result boom"><span class="big">會炸爐</span><span>與已確認的炸爐組合完全相同：</span>${pred.blasts.filter(r=>r.status==='已確認').map(r=>`<span class="rule">${r.code}　${esc(ruleText(r))} ${mineTag(r)}</span>`).join('')}${pred.recipes.length?`<span class="hint">注意：資料同時把這組列為配方 ${pred.recipes.map(r=>r.code).join('、')}，請先確認哪一筆有誤。</span>`:''}</div>`;
+    }else if(state==='pill'){
+      result=`<div class="result pill"><span class="big">煉成 ${esc([...new Set(pred.recipes.map(r=>r.pill))].join('、'))}</span><span>與已知配方完全相同：</span>${pred.recipes.map(r=>`<span class="rule">${r.code}　${esc(r.pill)}　${esc(r.status)} ${mineTag(r)}</span>`).join('')}${contained}${ov}</div>`;
+    }else if(pred.blasts.length){
+      result=`<div class="result unknown"><span class="big">待驗證的炸爐組合</span><span>有人提交這組會炸爐，但還沒被確認，只當警告：</span>${pred.blasts.map(r=>`<span class="rule">${r.code}　${esc(ruleText(r))}</span>`).join('')}${contained}${ov}</div>`;
+    }else{
+      result=`<div class="result unknown"><span class="big">資料庫沒有這組</span><span class="hint">還沒有人記錄過這組的結果。試了之後把結果記下來，下次就會提示。</span>${contained}${ov}</div>`;
+    }
+  }
+  let hints='';
+  if(items.length){
+    const warnH=Object.entries(mark).filter(([,m])=>m.warn.length&&!m.boom.length),boom=Object.entries(mark).filter(([,m])=>m.boom.length),mk=Object.entries(mark).filter(([,m])=>m.pill.length);
+    const lbl=nm=>nm in S.mix?`多加 1 份${nm}`:`加${nm}`;
+    if(boom.length)hints+=`<div class="alert critical"><b>下一份加這些，會炸爐</b><div class="chips">${boom.map(([nm,m])=>`<span class="chip boom">${esc(lbl(nm))}<b>${m.boom.join('、')}</b></span>`).join('')}</div></div>`;
+    if(warnH.length)hints+=`<div class="alert pending"><b>下一份加這些，會到待驗證的炸爐組合</b><div class="chips">${warnH.map(([nm,m])=>`<span class="chip">${esc(lbl(nm))}<b>${m.warn.join('、')}</b></span>`).join('')}</div></div>`;
+    if(mk.length)hints+=`<div class="alert recipe"><b>下一份加這些，會煉成</b><div class="chips">${mk.map(([nm,m])=>`<span class="chip pill">${esc(lbl(nm))}<b>→ ${esc(m.pill.join('、'))}</b></span>`).join('')}</div></div>`;
+    const later=steps.filter(s=>s.total>=2);
+    if(later.length)hints+=`<details class="panel"><summary>再加 2 到 3 份才會到的已知組合（${later.length}）</summary>${later.slice(0,40).map(s=>ruleRow(s.code,`${s.kind==='blast'?'炸爐':'煉成'+s.pill}：再加 ${s.missing.map(m=>m.name+'×'+m.qty).join('、')}`)).join('')}${later.length>40?`<p class="hint">還有 ${later.length-40} 組沒有列出。</p>`:''}</details>`;
+    if(!steps.length)hints=`<p class="hint">資料庫裡沒有以這組為基礎的已知組合。這不代表安全，只是還沒有人記錄。</p>`;
+  }
+  let record='';
+  if(items.length&&(state==='unknown'||state==='warn')){
+    record=`<section class="panel"><h2>試過了？記錄結果</h2><p class="hint">記下來會加進試煉提示與成本計算，只存在這台裝置。</p>
+    <button type="button" class="btn solid" data-act="log-boom">這組炸爐了</button>
+    <select id="log-pill" class="in-text" aria-label="煉成的丹藥">${PILLS.map(p=>`<option value="${esc(p)}" ${p===S.logPill?'selected':''}>${esc(p)}</option>`).join('')}</select>
+    <input id="log-new" class="in-text" type="text" maxlength="8" placeholder="或輸入新丹藥名稱" value="${esc(S.newPill)}" aria-label="新丹藥名稱">
+    <button type="button" class="btn" data-act="log-pill">這組煉成了</button></section>`;
+  }
+  let idx=0;
+  const grid=TIERS.slice().reverse().map(t=>{const list=ING.filter(i=>i.tier===t);return `<section class="grp"><h3>${dot(list[0].name)}${t}<small class="num">${list[0].price}–${list[list.length-1].price} 碎銀</small></h3><div class="mixgrid">${list.map(i=>{
+    const v=S.mix[i.name]||0,m=mark[i.name];let cls='',tag='',tip='';
+    if(m&&m.boom.length){cls='boom';tag='<span class="mk boom">會炸爐</span>';tip='，再加會炸爐'}
+    else if(m&&m.warn.length&&!m.pill.length){cls='warn';tag='<span class="mk warn">待驗證炸爐</span>';tip='，再加會到待驗證的炸爐組合'}
+    else if(m&&m.pill.length){cls='pill';tag=`<span class="mk pill">${esc(m.pill[0])}${m.pill.length>1?'…':''}</span>`;tip='，再加會煉成'+m.pill.join('、')}
+    idx++;
+    return `<div class="tile ${cls} ${v?'on':''}"><button type="button" class="add" data-act="mix-add" data-n="${esc(i.name)}" aria-label="加入${esc(i.name)}，目前 ${v} 份${tip}"><span class="tn">${dot(i.name)}${esc(i.name)}</span><span class="tp"><span class="num">${i.price}</span>${v?`<b class="cnt">×${v}</b>`:''}</span>${tag}</button>${v?`<button type="button" class="sub" data-act="mix-sub" data-n="${esc(i.name)}" aria-label="減少${esc(i.name)}">−</button>`:''}</div>`}).join('')}</div></section>`}).join('');
+  return `<section class="panel"><h2>試煉台</h2><p class="hint">一份一份加藥材，看會變成什麼。紅框的藥材再加一份就會炸爐，藍框的會煉成已知丹藥。</p>${S.mixExample?'<div class="banner"><b>已放入白芷＋寒心草當範例。</b>改任何一份就會清掉這個提示。</div>':''}</section>
+  ${bar}${result}${hints}${record}${grid}
+  <details class="panel"><summary>全部 ${RULE_LIST.length} 組已確認炸爐</summary>${RULE_LIST.map(r=>ruleRow(r.code,ruleText(r)+(r.mine?'（我的紀錄）':''))).join('')}</details>`;
+}
+
+/* ---------- 藥材 ---------- */
+function herbsView(){
+  const rUse=n=>RECIPES.filter(r=>r.items.some(i=>i.name===n)).length;
+  const fUse=n=>RULE_LIST.filter(r=>r.items.some(i=>i.name===n)).length;
+  return `<section class="panel"><h2>官方藥材價格</h2><p class="hint">取自賣藥文字，單位是碎銀／份。抓藥紀錄不會改動這些價格。</p></section>`+
+  TIERS.slice().reverse().map(t=>{const list=ING.filter(i=>i.tier===t);return `<section class="grp"><h3>${dot(list[0].name)}${t}<small>${list.length} 種</small></h3><div class="panel" style="padding:4px 16px"><div class="rows">${list.map(i=>`<div class="row"><span class="nm">${esc(i.name)}</span><span class="val"><b>${fmt(i.price)}</b></span><span class="sub">用於 ${rUse(i.name)} 種配方 · ${fUse(i.name)} 組炸爐${ALIAS_NOTE[i.name]?` · ${ALIAS_NOTE[i.name]}`:''}</span></div>`).join('')}</div></div></section>`}).join('');
+}
+
+/* ---------- 庫存 ---------- */
+function stockView(){
+  const value=ING.reduce((a,i)=>a+(S.stock[i.name]||0)*i.price,0);
+  const kinds=Object.keys(S.stock).filter(n=>S.stock[n]>0).length;
+  let idx=0;
+  return `${S.exampleStock?`<div class="banner"><b>這是範例庫存。</b>改任何數量後就會變成你自己的，資料只存在這台裝置的瀏覽器。</div>`:''}
+  <section class="panel"><h2>貼上抓藥結果</h2><p class="hint">把 /抓藥 的訊息整段貼上，每一行算一份，會加進庫存。價格只拿來核對，不會改官方價格。</p>
+  <textarea id="haul-text" class="ta" placeholder="・甘草〔平凡〕－ 12 碎銀&#10;・朱果〔罕見〕－ 110 碎銀" aria-label="抓藥訊息">${esc(S.haulText)}</textarea>
+  <button type="button" class="btn solid" data-act="haul-add">加入庫存</button>${S.haulNote?`<div class="banner">${esc(S.haulNote)}</div>`:''}</section>
+  <section class="panel"><h2>我的庫存</h2><div class="summary"><strong class="num">${fmt(value)} 碎銀</strong><span class="hint">${kinds} 種藥材，依官方價格估值</span></div>
+  <button type="button" class="btn ${S.armed==='clear'?'armed':'quiet'}" data-act="stock-clear">${S.armed==='clear'?'再按一次，確認清空':'清空庫存'}</button></section>`+
+  TIERS.slice().reverse().map(t=>{const list=ING.filter(i=>i.tier===t);return `<section class="grp"><h3>${dot(list[0].name)}${t}</h3><div class="panel" style="padding:4px 16px"><div class="rows">${list.map(i=>`<div class="row"><span class="nm">${esc(i.name)}</span>${stepper('stock',i.name,S.stock[i.name]||0,idx++)}<span class="sub num">${fmt(i.price)} 碎銀</span></div>`).join('')}</div></div></section>`}).join('');
+}
+
+/* ---------- 紀錄 ---------- */
+function logView(){
+  const list=S.log.slice().reverse();
+  const when=t=>{const d=new Date(t);return isNaN(d)?'':d.toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})};
+  const cards=list.map(e=>`<article class="card"><div class="head"><div class="who"><div class="tags"><span class="tag ${e.result==='blast'?'':'mine'}">${e.result==='blast'?'炸爐':'煉成 '+esc(e.pill)}</span></div><span class="code">M${e.id} · ${when(e.t)}</span></div><div class="price"><b style="font-size:22px">${fmt(cost(e.items))}</b><span>理論成本</span></div></div><div class="chips">${e.items.map(i=>chip(i.name,i.qty)).join('')}</div><div class="actions"><button type="button" class="btn quiet" data-act="to-lab-log" data-id="${e.id}">放進試煉台</button><button type="button" class="btn ${S.armed==='del'+e.id?'armed':'quiet'}" data-act="log-del" data-id="${e.id}">${S.armed==='del'+e.id?'再按一次，確認刪除':'刪除'}</button></div></article>`).join('');
+  const exp=JSON.stringify({v:2,stock:S.exampleStock?{}:S.stock,log:S.log.map(({result,pill,items,t})=>({result,pill,items,t}))});
+  const roleName={member:'一般成員',researcher:'研究者',admin:'管理員'}[SB.role]||'一般成員';
+  let acct='';
+  if(SB.state==='off')acct=`<section class="panel"><h2>帳號與同步</h2><p class="hint">目前是本機模式：庫存與紀錄只存在這台裝置。管理員在 app 設定填入 Supabase 後，這裡會出現登入。</p></section>`;
+  else if(SB.state==='loading')acct=`<section class="panel"><h2>帳號與同步</h2><p class="hint">載入中…</p></section>`;
+  else if(SB.state==='in')acct=`<section class="panel"><h2>帳號與同步</h2><div class="summary"><strong style="font-size:16px">${esc(SB.user.email||'')}</strong><span class="tag">${roleName}</span></div><p class="hint">庫存只有你看得到；試煉紀錄會分享給群組，別人的紀錄在你這裡算「待驗證」。</p>${SB.msg?`<div class="banner">${esc(SB.msg)}</div>`:''}<div class="actions"><button type="button" class="btn" data-act="sync-now">立即同步</button><button type="button" class="btn quiet" data-act="sign-out">登出</button></div></section>`;
+  else acct=`<section class="panel"><h2>登入</h2><p class="hint">輸入信箱，會寄一封登入連結給你，不需要密碼。登入後庫存與紀錄可跨裝置同步。</p><input id="login-email" class="in-text" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" value="${esc(S.email||'')}" aria-label="信箱"><button type="button" class="btn solid" data-act="sign-in">寄登入連結</button>${SB.msg?`<div class="banner">${esc(SB.msg)}</div>`:''}</section>`;
+  return acct+`<section class="panel"><h2>我的試煉紀錄</h2><p class="hint">在「試煉」記下的結果。炸爐會加進警報，煉成的配方會加進計算，只存在這台裝置。</p><div class="summary"><strong>${S.log.length} 筆</strong><span class="hint">炸爐 ${S.log.filter(e=>e.result==='blast').length} · 煉成 ${S.log.filter(e=>e.result==='recipe').length}</span></div></section>
+  ${cards||'<div class="panel empty"><p>還沒有紀錄。</p><button type="button" class="btn" data-act="tab" data-tab="lab">到試煉台試一組</button></div>'}
+  <details class="panel"><summary>備份：匯出與匯入</summary>
+    <p class="hint">備份包含庫存與試煉紀錄。換手機或定期備份時，複製下面的文字存起來。匯入時紀錄會去掉重複的，庫存若有內容會取代目前庫存。</p>
+    <textarea class="ta" readonly aria-label="匯出文字" id="export-text">${esc(exp)}</textarea>
+    <button type="button" class="btn" data-act="log-copy">複製紀錄</button>
+    <textarea id="import-text" class="ta" placeholder="貼上要匯入的紀錄文字" aria-label="匯入文字">${esc(S.importText)}</textarea>
+    <button type="button" class="btn" data-act="log-import">匯入紀錄</button></details>`;
+}
+
+function render(){
+  const views={calc:calcView,recipes:recipesView,lab:labView,herbs:herbsView,stock:stockView,log:logView};
+  const head=`<header class="brand"><h1>丹爐</h1><p>煉藥研究所 · 價格以賣藥文字為準</p></header>`;
+  const fb=S.fallback?`<section class="panel"><h2>請手動複製</h2><p class="hint">這個畫面不允許自動複製，長按下面的文字選取後複製。</p><textarea class="ta" readonly aria-label="要複製的文字" id="fallback-text">${esc(S.fallback)}</textarea><button type="button" class="btn quiet" data-act="fallback-close">關閉</button></section>`:'';
+  const foot=`<p class="foot">資料 2026-10-18 · ${ING.length} 種藥材 · ${RECIPES.length} 筆配方 · ${RULE_LIST.length} 組炸爐</p>`;
+  document.getElementById('app').innerHTML=head+fb+views[S.tab]()+foot;
+  let nav=document.querySelector('nav.tabs');
+  if(!nav){nav=document.createElement('nav');nav.className='tabs';nav.setAttribute('aria-label','主選單');document.body.appendChild(nav)}
+  nav.innerHTML=`<div class="in">${TABS.map(([k,l])=>`<button type="button" data-act="tab" data-tab="${k}" ${k===S.tab?'aria-current="page"':''}>${l}</button>`).join('')}</div>`;
+}
+let tt;
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>{t.hidden=true},2400)}
+const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+function setQty(kind,n,v){
+  v=clamp(Number.isFinite(v)?Math.floor(v):0,0,999);
+  if(kind==='stock'){if(v)S.stock[n]=v;else delete S.stock[n];S.exampleStock=false;save()}
+}
+function setMix(n,v){v=clamp(v,0,99);if(v)S.mix[n]=v;else delete S.mix[n];S.mixExample=false}
+async function copyText(text,okMsg){
+  try{await navigator.clipboard.writeText(text);toast(okMsg)}
+  catch(e){S.fallback=text;render();window.scrollTo(0,0)}
+}
+function addLog(entry){
+  const e={id:S.nextId++,t:new Date().toISOString(),...entry};
+  S.log.push(e);refreshWorld();save();
+  pushLogEntry(e).catch(err=>{SB.msg='紀錄只存在本機，上傳失敗：'+(err.message||err);render()});
+}
+function doBrew(code){
+  const r=[...plan().verified,...plan().unverified].find(x=>x.code===code);
+  if(!r)return;
+  for(const [n,d] of Object.entries(r.deducted))setQty('stock',n,(S.stock[n]||0)-d);
+  toast('已扣除庫存');
+}
+function listText(code){
+  const r=[...plan().verified,...plan().unverified].find(x=>x.code===code);
+  if(!r)return '';
+  const buy=Object.entries(r.toBuy).map(([n,q])=>`${n}×${q}`).join('、');
+  return `${S.pill} × ${S.count}（配方 ${code}）\n要買：${buy}\n需另付 ${r.purchaseCost} 碎銀`;
+}
+function doHaul(){
+  const res=parseHaul(S.haulText,PRICES);
+  if(!res.items.size){S.haulNote='沒有讀到藥材。請整段貼上含「－ 數字 碎銀」的行。';return}
+  let total=0;
+  if(S.exampleStock)S.stock={};
+  for(const [n,q] of res.items){S.stock[n]=(S.stock[n]||0)+q;total+=q}
+  S.exampleStock=false;save();
+  let note=`已加入 ${total} 份（${res.items.size} 種）。`;
+  if(res.unknown.length)note+=` 認不得：${[...new Set(res.unknown)].join('、')}。`;
+  if(res.mismatch.length)note+=` 價格和官方不同：${res.mismatch.map(m=>`${m.name} ${m.price}≠${m.official}`).join('、')}（仍已加入）。`;
+  S.haulNote=note;S.haulText='';
+}
+function doImport(){
+  let arr,stockIn=null;
+  try{arr=JSON.parse(S.importText)}catch(e){toast('格式不對，請貼上匯出的文字');return}
+  if(arr&&!Array.isArray(arr)&&typeof arr==='object'){
+    if(arr.stock&&typeof arr.stock==='object'){
+      const st={};for(const [n,v] of Object.entries(arr.stock)){const k=canonicalName(n);if(k in PRICES&&Number.isInteger(v)&&v>0&&v<=999)st[k]=v}
+      if(Object.keys(st).length)stockIn=st;
+    }
+    arr=arr.log;
+  }
+  if(!Array.isArray(arr)){toast('格式不對，請貼上匯出的文字');return}
+  if(stockIn){S.stock=stockIn;S.exampleStock=false}
+  const seen=new Set(S.log.map(e=>e.result+'|'+(e.pill||'')+'|'+mixKey(e.items)));
+  let added=0,skipped=0;
+  for(const raw of arr){
+    const n=normalizeEntry(raw);
+    if(!n){skipped++;continue}
+    const k=n.result+'|'+(n.pill||'')+'|'+mixKey(n.items);
+    if(seen.has(k)){skipped++;continue}
+    seen.add(k);S.log.push({id:S.nextId++,...n});added++;
+  }
+  refreshWorld();save();S.importText='';
+  toast(`匯入 ${added} 筆${skipped?`，略過 ${skipped} 筆`:''}`);
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');if(!b)return;
+  const a=b.dataset.act;
+  if(a!=='brew'&&a!=='stock-clear'&&a!=='log-del')S.armed=null;
+  switch(a){
+    case 'tab':S.tab=b.dataset.tab;save();render();window.scrollTo(0,0);return;
+    case 'pill':S.pill=b.dataset.pill;save();break;
+    case 'try':S.pill=b.dataset.pill;S.tab='calc';save();render();window.scrollTo(0,0);return;
+    case 'to-lab':{const r=RECIPES.find(x=>x.code===b.dataset.code);if(r){S.mix=Object.fromEntries(mergeItems(r.items));S.mixExample=false;S.tab='lab';save();render();window.scrollTo(0,0)}return}
+    case 'to-lab-log':{const r=S.log.find(x=>x.id===Number(b.dataset.id));if(r){S.mix=Object.fromEntries(mergeItems(r.items));S.mixExample=false;S.tab='lab';save();render();window.scrollTo(0,0)}return}
+    case 'cnt+':S.count=clamp(S.count+1,1,99);save();break;
+    case 'cnt-':S.count=clamp(S.count-1,1,99);save();break;
+    case 'toggle-stock':S.useStock=!S.useStock;save();break;
+    case 'toggle-unv':S.allowUnverified=!S.allowUnverified;save();break;
+    case 'inc':case 'dec':{const n=b.dataset.n;setQty('stock',n,(S.stock[n]||0)+(a==='inc'?1:-1));break}
+    case 'mix-add':setMix(b.dataset.n,(S.mix[b.dataset.n]||0)+1);break;
+    case 'mix-sub':setMix(b.dataset.n,(S.mix[b.dataset.n]||0)-1);break;
+    case 'mix-clear':S.mix={};S.mixExample=false;break;
+    case 'log-boom':{const items=mixItems();if(items.length){addLog({result:'blast',items});toast('已記錄：這組會炸爐')}break}
+    case 'log-pill':{
+      const items=mixItems();if(!items.length)break;
+      const sel=document.getElementById('log-pill');
+      const name=canonicalPill((S.newPill||'').trim()||(sel?sel.value:''));
+      if(!name||name.length>8){toast('請輸入 1 到 8 個字的丹藥名稱');return}
+      addLog({result:'recipe',pill:name,items});S.newPill='';toast(`已記錄：煉成 ${name}`);break}
+    case 'log-del':
+      if(S.armed==='del'+b.dataset.id){
+        const gone=S.log.find(x=>x.id===Number(b.dataset.id));
+        S.log=S.log.filter(x=>x.id!==Number(b.dataset.id));S.armed=null;refreshWorld();save();toast('已刪除');
+        if(gone&&gone.rid&&signedIn())SB.client.from('research_logs').delete().eq('id',gone.rid).then(r=>{if(r.error){SB.msg='雲端刪除失敗：'+r.error.message;render()}});
+      }
+      else S.armed='del'+b.dataset.id;
+      break;
+    case 'log-copy':copyText(document.getElementById('export-text').value,'已複製紀錄');return;
+    case 'log-import':doImport();break;
+    case 'sign-in':{
+      const em=(S.email||'').trim();
+      if(!/^\S+@\S+\.\S+$/.test(em)){SB.msg='請輸入正確的信箱';break}
+      SB.msg='寄送中…';render();
+      SB.client.auth.signInWithOtp({email:em,options:{emailRedirectTo:location.href.split('#')[0]}}).then(r=>{
+        SB.msg=r.error?'寄送失敗：'+r.error.message:'已寄出，請到信箱點連結回來（也看看垃圾郵件匣）。';render()});
+      return}
+    case 'sign-out':SB.client.auth.signOut().then(()=>{SB.state='out';SB.user=null;SB.role='member';SB.others=[];SB.lastStock=null;SB.msg='';refreshWorld();render()});return;
+    case 'sync-now':SB.msg='';SB.lastStock=null;pushStock().then(loadRemote);toast('同步中');return;
+    case 'haul-add':doHaul();break;
+    case 'stock-clear':
+      if(S.armed==='clear'){S.stock={};S.exampleStock=false;S.armed=null;save();toast('庫存已清空')}else S.armed='clear';
+      break;
+    case 'brew':
+      if(S.armed!==b.dataset.code)S.armed=b.dataset.code;
+      else{doBrew(b.dataset.code);S.armed=null}
+      break;
+    case 'copy-list':copyText(listText(b.dataset.code),'已複製採購清單');return;
+    case 'fallback-close':S.fallback='';break;
+    default:return;
+  }
+  render();
+});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t instanceof HTMLSelectElement&&t.id==='log-pill'){S.logPill=t.value;return}
+  if(!(t instanceof HTMLInputElement))return;
+  if(t.dataset.k==='count'){S.count=clamp(parseInt(t.value,10)||1,1,99);save();render()}
+  else if(t.dataset.k==='stock'){setQty('stock',t.dataset.n,parseInt(t.value,10));render()}
+});
+document.addEventListener('input',e=>{
+  const t=e.target;if(!t)return;
+  if(t.id==='q-recipes'){
+    S.q=t.value;
+    const tmp=document.createElement('div');tmp.innerHTML=recipesView();
+    document.getElementById('recipe-list').innerHTML=tmp.querySelector('#recipe-list').innerHTML;
+  }else if(t.id==='haul-text')S.haulText=t.value;
+  else if(t.id==='log-new')S.newPill=t.value;
+  else if(t.id==='import-text')S.importText=t.value;
+  else if(t.id==='login-email')S.email=t.value;
+});
+render();
+initSupabase();
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+})();
+</script>
