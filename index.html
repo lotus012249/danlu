@@ -669,7 +669,7 @@ const EXAMPLE_STOCK={白芷:2,寒心草:1,人參:1};
 const KEY='danlu.v2',OLD_KEY='danlu.v1';
 /* Supabase 設定：留空就是純本機模式。填入專案網址與 anon 公開金鑰後，會出現登入與同步。
    anon 金鑰本來就是公開的，安全靠 step7_auth.sql 的資料庫端權限，不要放 service_role 金鑰。 */
-const SUPABASE={url:'',anonKey:''};
+const SUPABASE={url:'https://figwwfvcsooafpflcsgn.supabase.co',anonKey:'sb_publishable_14tHrxyLXtRSmTkwbn-idw_oVUbXZGE'};
 const SB={client:null,user:null,role:'member',state:SUPABASE.url&&SUPABASE.anonKey?'loading':'off',msg:'',others:[],lastStock:null};
 
 const S={tab:'calc',pill:'大還丹',count:1,useStock:true,allowUnverified:true,stock:{...EXAMPLE_STOCK},exampleStock:true,
